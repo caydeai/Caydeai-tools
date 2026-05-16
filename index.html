@@ -1,601 +1,633 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Cayde AI — Free Business Roadmap Generator</title>
-<meta name="description" content="Get a personalized AI business roadmap in 5 minutes. Built by Cayde, solo founder of CaydeOS." />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<style>
-  :root {
-    --bg: #08070A;
-    --surface: #0E0C0F;
-    --surface-2: #14111A;
-    --border: #1F1A23;
-    --border-strong: #2A2330;
-    --text-1: #F4ECE0;
-    --text-2: #8A7E70;
-    --text-3: #5A5048;
-    --ember: #E8906A;
-    --ember-hover: #F2A283;
-    --ember-soft: rgba(232,144,106,0.10);
-    --ember-border: rgba(232,144,106,0.25);
-    --moss: #5DBA62;
-    --rose: #E85555;
-    --r-card: 14px;
-    --r-btn: 8px;
-    --r-input: 8px;
+// caydeai-freetool-worker
+// Cloudflare Worker proxy for Cayde AI free tool
+// Handles: Stage 1 (Haiku preview) + Stage 2 (Sonnet+web_search) + Beehiiv email submission
+//
+// ═══════════════════════════════════════════════════════════════════════════
+// TIER 1 + HAIKU CONFIG (set 2026-05-16 evening, decision_log entry)
+// ═══════════════════════════════════════════════════════════════════════════
+// This Worker is configured for Anthropic Tier 1 rate limits (30K input tokens/min).
+//
+// STAGE 2 MODEL: Haiku 4.5 (switched from Sonnet 4.6 evening of 2026-05-16)
+// STAGE 2 max_uses: 4 (down from 8 original)
+//
+// REASONING — why this config:
+//   - Sonnet 4.6 + web_search 30K input/min ceiling is hit by the tool overhead
+//     itself, not just search results. Even max_uses=1 with Sonnet 429'd.
+//   - Haiku 4.5 has lighter per-call input footprint AND higher Tier 1 limits.
+//   - max_uses=4 gives one search above niche-scout's locked minimum of 3,
+//     providing more grounding data to compensate for Haiku's weaker synthesis.
+//
+// QUALITY TRADEOFF (eyes open):
+//   - Haiku has weaker synthesis than Sonnet on multi-input reasoning
+//   - Stage 2 prompt's "hedge unverified facts" discipline is now LOAD-BEARING
+//   - Refund-coupling risk shifts: more on prompt discipline, less on raw model
+//
+// REVERT ON DAY 31 (JUNE 2, 2026) — NOT MAY 22:
+//   - Anthropic Tier 2 unlocks ~May 22-23 (90K input tokens/min)
+//   - BUT May 21-Jun 1 is the London window (minimal work capacity)
+//   - Revert is scheduled for Day 31 (June 2) when full work resumes
+//   - Tracked in current_priorities.md Day 31
+//
+// WHAT TO REVERT ON DAY 31:
+//   1. Change Stage 2 model from 'claude-haiku-4-5-20251001' → 'claude-sonnet-4-6'
+//   2. Change Stage 2 max_uses: 4 → 8
+//   3. Re-run 3-bar verification (sentinel + token margin + 429-async path)
+//   4. Update decision_log.md with Day 31 revert entry
+// ═══════════════════════════════════════════════════════════════════════════
+
+// CORS headers for frontend access
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// Rate limiting: simple in-memory store (per-Worker-instance)
+const rateLimitMap = new Map();
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxRequests = 5;
+
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, []);
   }
 
-  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-1); font-family: 'Inter', sans-serif; min-height: 100vh; }
-  body { display: flex; flex-direction: column; align-items: center; padding: 32px 20px 64px; line-height: 1.5; }
-
-  .header { width: 100%; max-width: 680px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 48px; }
-  .logo { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 13px; color: var(--text-2); letter-spacing: 0.05em; }
-  .logo .accent { color: var(--ember); }
-  .logo .sep { color: var(--text-3); margin: 0 8px; }
-  .header-link { font-size: 13px; color: var(--text-2); text-decoration: none; transition: color 0.15s; }
-  .header-link:hover { color: var(--text-1); }
-
-  .card {
-    width: 100%; max-width: 680px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-card);
-    padding: 56px 48px;
-    animation: fadeIn 0.4s ease-out;
+  const requests = rateLimitMap.get(ip);
+  const recentRequests = requests.filter(t => now - t < windowMs);
+  
+  if (recentRequests.length >= maxRequests) {
+    return false;
   }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-  h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; color: var(--text-1); }
-  h1 { font-size: 44px; font-weight: 700; }
-  h2 { font-size: 30px; font-weight: 600; }
-  p { margin: 0; }
-
-  .eyebrow { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ember); letter-spacing: 0.12em; margin-bottom: 24px; text-transform: uppercase; padding: 6px 10px; background: var(--ember-soft); border: 1px solid var(--ember-border); border-radius: 6px; }
-  .intro-h1 { margin-bottom: 20px; }
-  .intro-h1 .accent { color: var(--ember); }
-  .intro-sub { font-size: 17px; line-height: 1.6; color: var(--text-2); margin-bottom: 36px; max-width: 540px; }
-  .intro-features { display: flex; flex-direction: column; gap: 14px; margin-bottom: 40px; }
-  .intro-feature { display: flex; align-items: flex-start; gap: 12px; font-size: 15px; color: var(--text-1); }
-  .intro-feature-icon { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; background: var(--ember-soft); border: 1px solid var(--ember-border); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
-  .intro-feature-icon::after { content: ''; width: 6px; height: 6px; background: var(--ember); border-radius: 50%; }
-
-  .progress-wrap { margin-bottom: 32px; }
-  .progress { width: 100%; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--ember); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 0%; }
-  .progress-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); letter-spacing: 0.08em; margin-top: 10px; text-transform: uppercase; }
-
-  .question { font-size: 28px; font-weight: 600; line-height: 1.25; margin: 0 0 12px; color: var(--text-1); letter-spacing: -0.015em; }
-  .helper { font-size: 15px; line-height: 1.6; color: var(--text-2); margin-bottom: 32px; max-width: 540px; }
-
-  .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 32px; }
-  .option {
-    width: 100%; text-align: left;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text-1);
-    padding: 16px 20px;
-    border-radius: var(--r-btn);
-    font-family: inherit; font-size: 15px; font-weight: 500;
-    cursor: pointer; transition: all 0.15s ease;
-    display: flex; align-items: center; gap: 14px;
-    line-height: 1.4;
-  }
-  .option:hover { border-color: var(--border-strong); background: var(--surface-2); }
-  .option.selected { border-color: var(--ember); background: var(--ember-soft); }
-  .option-emoji { font-size: 18px; flex-shrink: 0; opacity: 0.9; }
-  .option.selected .option-emoji { opacity: 1; }
-
-  .text-input, .text-area {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text-1);
-    padding: 16px 18px;
-    border-radius: var(--r-input);
-    font-family: inherit; font-size: 15px;
-    transition: border-color 0.15s, background 0.15s;
-    margin-bottom: 16px;
-    line-height: 1.5;
-  }
-  .text-input:focus, .text-area:focus { outline: none; border-color: var(--ember); background: var(--surface); }
-  .text-input::placeholder, .text-area::placeholder { color: var(--text-3); }
-  .text-area { min-height: 110px; resize: vertical; }
-
-  .custom-text-wrap { margin-top: -4px; padding-left: 12px; border-left: 2px solid var(--ember); margin-bottom: 24px; }
-  .custom-text-wrap input { margin-bottom: 0; }
-
-  .nav-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
-  .btn-primary {
-    background: var(--ember); color: var(--bg);
-    border: none; padding: 14px 28px;
-    border-radius: var(--r-btn); font-family: inherit;
-    font-size: 15px; font-weight: 600; cursor: pointer;
-    transition: all 0.15s ease;
-    letter-spacing: -0.005em;
-  }
-  .btn-primary:hover:not(:disabled) { background: var(--ember-hover); transform: translateY(-1px); }
-  .btn-primary:active:not(:disabled) { transform: translateY(0); }
-  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
-  .btn-primary.full { width: 100%; padding: 16px 28px; font-size: 16px; }
-  .btn-ghost { background: transparent; color: var(--text-2); border: none; padding: 14px 14px; font-family: inherit; font-size: 14px; cursor: pointer; transition: color 0.15s ease; font-weight: 500; }
-  .btn-ghost:hover { color: var(--text-1); }
-
-  .loading { text-align: center; padding: 48px 0; }
-  .loading-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ember); letter-spacing: 0.12em; margin-bottom: 32px; text-transform: uppercase; }
-  .loading-msg { font-size: 20px; color: var(--text-1); margin-bottom: 12px; font-weight: 500; min-height: 28px; letter-spacing: -0.01em; }
-  .loading-sub { font-size: 14px; color: var(--text-2); }
-  .spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--ember); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 32px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .preview-eyebrow { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--moss); letter-spacing: 0.12em; margin-bottom: 24px; text-transform: uppercase; padding: 6px 10px; background: rgba(93,186,98,0.10); border: 1px solid rgba(93,186,98,0.25); border-radius: 6px; }
-  .preview-niche { font-size: 32px; font-weight: 700; line-height: 1.2; color: var(--ember); margin: 0 0 20px; letter-spacing: -0.02em; }
-  .verdict-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 24px; }
-  .verdict-green { background: rgba(93,186,98,0.10); color: var(--moss); border: 1px solid rgba(93,186,98,0.25); }
-  .verdict-yellow { background: var(--ember-soft); color: var(--ember); border: 1px solid var(--ember-border); }
-  .verdict-red { background: rgba(232,85,85,0.10); color: var(--rose); border: 1px solid rgba(232,85,85,0.25); }
-  .preview-body { font-size: 16px; line-height: 1.7; color: var(--text-1); margin-bottom: 28px; }
-  .preview-meta-row { display: flex; gap: 24px; flex-wrap: wrap; padding: 20px 24px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-btn); margin-bottom: 28px; }
-  .preview-meta-label { color: var(--text-3); display: block; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
-  .preview-meta-val { color: var(--text-1); font-weight: 600; font-size: 15px; }
-  .preview-teaser { font-size: 17px; line-height: 1.6; color: var(--text-1); padding: 24px; background: var(--ember-soft); border-radius: var(--r-btn); border: 1px solid var(--ember-border); margin-bottom: 36px; font-weight: 500; }
-
-  .email-h { font-size: 26px; font-weight: 700; line-height: 1.25; color: var(--text-1); margin: 0 0 12px; letter-spacing: -0.015em; }
-  .email-sub { font-size: 15px; line-height: 1.65; color: var(--text-2); margin-bottom: 28px; max-width: 520px; }
-  .email-form { display: flex; flex-direction: column; gap: 12px; }
-  .email-fine { font-size: 12px; color: var(--text-3); line-height: 1.5; margin-top: 12px; max-width: 520px; }
-
-  .final-wrap { text-align: center; padding: 8px 0 0; }
-  .final-eyebrow { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--moss); letter-spacing: 0.12em; margin-bottom: 28px; text-transform: uppercase; padding: 6px 12px; background: rgba(93,186,98,0.10); border: 1px solid rgba(93,186,98,0.25); border-radius: 6px; }
-  .final-h { font-size: 36px; font-weight: 700; line-height: 1.15; color: var(--text-1); margin: 0 0 16px; letter-spacing: -0.02em; }
-  .final-h .accent { color: var(--ember); }
-  .final-sub { font-size: 17px; line-height: 1.6; color: var(--text-2); margin: 0 auto 40px; max-width: 480px; }
-  .final-email-card { display: inline-flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-btn); margin-bottom: 48px; font-size: 14px; color: var(--text-1); }
-  .final-email-card-icon { width: 10px; height: 10px; background: var(--moss); border-radius: 50%; animation: pulse 1.8s ease-in-out infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  .final-divider { height: 1px; background: var(--border); margin: 8px 0 48px; }
-
-  .pitch-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ember); letter-spacing: 0.12em; margin-bottom: 16px; text-transform: uppercase; }
-  .pitch-h { font-size: 28px; font-weight: 700; line-height: 1.2; color: var(--text-1); margin: 0 0 16px; letter-spacing: -0.015em; }
-  .pitch-h .accent { color: var(--ember); }
-  .pitch-sub { font-size: 16px; line-height: 1.65; color: var(--text-2); margin: 0 0 32px; }
-  .pitch-features { display: flex; flex-direction: column; gap: 14px; margin: 0 0 36px; text-align: left; }
-  .pitch-feature { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-btn); transition: border-color 0.15s; }
-  .pitch-feature:hover { border-color: var(--border-strong); }
-  .pitch-feature-num { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--ember); flex-shrink: 0; padding-top: 2px; }
-  .pitch-feature-title { font-size: 15px; font-weight: 600; color: var(--text-1); margin: 0 0 4px; }
-  .pitch-feature-desc { font-size: 14px; color: var(--text-2); line-height: 1.55; }
-  .pitch-price-row { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-bottom: 24px; }
-  .pitch-price { font-size: 40px; font-weight: 700; color: var(--text-1); letter-spacing: -0.02em; }
-  .pitch-price-sub { font-size: 14px; color: var(--text-2); }
-
-  .cta-stack { display: flex; flex-direction: column; gap: 12px; max-width: 420px; margin: 0 auto; }
-  .cta-link { display: block; padding: 18px 24px; background: var(--ember); color: var(--bg); border-radius: var(--r-btn); text-decoration: none; font-weight: 600; text-align: center; font-size: 16px; transition: all 0.15s ease; letter-spacing: -0.005em; }
-  .cta-link:hover { background: var(--ember-hover); transform: translateY(-1px); }
-  .cta-link-ghost { display: block; padding: 14px 24px; background: transparent; color: var(--text-2); border: 1px solid var(--border); border-radius: var(--r-btn); text-decoration: none; text-align: center; font-size: 14px; transition: all 0.15s ease; font-weight: 500; }
-  .cta-link-ghost:hover { color: var(--text-1); border-color: var(--border-strong); }
-
-  .footer { width: 100%; max-width: 680px; text-align: center; margin-top: 40px; font-size: 12px; color: var(--text-3); }
-  .footer a { color: var(--text-2); text-decoration: none; transition: color 0.15s; }
-  .footer a:hover { color: var(--text-1); }
-
-  @media (max-width: 640px) {
-    body { padding: 20px 16px 40px; }
-    .header { margin-bottom: 32px; }
-    .card { padding: 36px 24px; border-radius: 12px; }
-    h1 { font-size: 32px; }
-    .question { font-size: 22px; }
-    .preview-niche { font-size: 26px; }
-    .final-h { font-size: 28px; }
-    .pitch-h { font-size: 24px; }
-    .pitch-price { font-size: 36px; }
-  }
-</style>
-</head>
-<body>
-
-<div class="header">
-  <div class="logo"><span class="accent">CAYDE</span>OS <span class="sep">/</span> FREE TOOL</div>
-  <a href="https://caydeai.carrd.co" class="header-link">caydeai ↗</a>
-</div>
-
-<div class="card" id="app"></div>
-
-<div class="footer">
-  Built by Cayde · <a href="https://caydeai.carrd.co">caydeai.carrd.co</a> · 90 day public build
-</div>
-
-<script>
-const WORKER_URL = 'https://freetool.caydenfrankai.workers.dev';
-
-const QUESTIONS = [
-  { id: 'Q3', type: 'choice', question: 'How many hours per week can you realistically commit?', helper: "Be honest. This drives feasibility — a software build at 5 hrs/week doesn't work; a POD shop at 5 hrs/week does.",
-    options: [
-      { value: '5-10', label: '5–10 hours (part-time, evenings/weekends)', emoji: '⏰' },
-      { value: '10-20', label: '10–20 hours (serious side project)', emoji: '🕐' },
-      { value: '20-40', label: '20–40 hours (substantial commitment)', emoji: '🕒' },
-      { value: '40+', label: '40+ hours (full-time focus)', emoji: '🚀' }
-    ]
-  },
-  { id: 'Q4', type: 'choice', question: "What's your budget for getting this off the ground?", helper: "Includes tools, platform fees, design assets, initial inventory if any. Just what you're willing to invest.",
-    options: [
-      { value: '$0-100', label: '$0–100 (scrappy mode)', emoji: '💸' },
-      { value: '$100-500', label: '$100–500 (lean budget)', emoji: '💵' },
-      { value: '$500-2000', label: '$500–2000 (real investment)', emoji: '💰' },
-      { value: '$2000+', label: '$2000+ (well-resourced)', emoji: '🏦' }
-    ]
-  },
-  { id: 'Q5', type: 'choice-or-custom', question: 'How would you describe your technical comfort?', helper: 'No judgment here — there are great businesses to build at every level.',
-    options: [
-      { value: 'no-skills', label: 'Just starting — no design or code background', emoji: '🌱' },
-      { value: 'no-code tools', label: 'Comfortable with no-code tools (Canva, Notion, Make.com)', emoji: '🛠️' },
-      { value: 'apis-basic', label: 'Can use APIs and basic web tools', emoji: '🔧' },
-      { value: 'coder', label: 'Can code / build full applications', emoji: '💻' },
-      { value: 'other', label: 'Other — let me describe it', emoji: '✍️', custom: true }
-    ],
-    customPlaceholder: 'Describe your skills in your own words...'
-  },
-  { id: 'Q1', type: 'choice', question: 'Do you already know what business or niche you want to build?', helper: 'No wrong answer — this just determines how we phrase the next question.',
-    options: [
-      { value: 'yes', label: 'Yes — I have a niche in mind', emoji: '✅' },
-      { value: 'no_or_kind_of', label: 'No or kind of — help me figure it out', emoji: '🤔' }
-    ]
-  },
-  { id: 'Q2', type: 'text',
-    questionFn: (answers) => answers.Q1 === 'yes' ? "What's your niche? Be as specific as you can." : "What are you actually interested in or good at?",
-    helperFn: (answers) => answers.Q1 === 'yes' ? "Specific beats broad. \"Vintage dog mom apparel for goldendoodle owners\" beats \"pet stuff.\" Target customer too if you have one." : "Don't worry about \"profitable\" — just real interests, skills, or experiences. We'll find the angle.",
-    placeholderFn: (answers) => answers.Q1 === 'yes' ? "e.g. Notion templates for ADHD founders, freelance pixel art commissions on Fiverr, minimalist desk plants for renters..." : "e.g. I'm a teacher who's into productivity systems, I make pixel art as a hobby, I rescue dogs and know the community well..."
-  },
-  { id: 'Q6', type: 'choice-or-custom', question: 'What sounds most like the business you want to run?', helper: "Not sure? Pick \"honestly not sure\" and I'll recommend what fits.",
-    options: [
-      { value: 'POD', label: 'Physical products (apparel, prints, mugs — fulfilled by someone else)', emoji: '👕' },
-      { value: 'Service', label: 'Services (your time/skill, delivered to clients)', emoji: '🤝' },
-      { value: 'Digital', label: 'Digital products (templates, courses, ebooks)', emoji: '📦' },
-      { value: 'Software', label: 'Software (apps, tools, SaaS)', emoji: '⚙️' },
-      { value: 'unsure', label: 'Honestly not sure — recommend what fits', emoji: '🤷' },
-      { value: 'other', label: 'Other — let me describe it', emoji: '✍️', custom: true }
-    ],
-    customPlaceholder: 'Describe what you have in mind...'
-  },
-  { id: 'Q7', type: 'choice', question: 'Do you have any existing audience or distribution?', helper: 'Even small audiences change the recommendation. Newsletter, Discord, Twitter, YouTube — all count.',
-    options: [
-      { value: 'none', label: 'None — starting from zero', emoji: '🌑' },
-      { value: 'small', label: 'Small (under 1K followers or 500 subscribers)', emoji: '🌒' },
-      { value: 'mid', label: 'Mid (1K–10K followers or 500–3K subscribers)', emoji: '🌓' },
-      { value: 'large', label: 'Large (10K+ followers or 3K+ subscribers)', emoji: '🌕' }
-    ]
-  },
-  { id: 'Q8', type: 'choice', question: 'How fast do you want to launch?', helper: "There's no wrong answer. Honest pace beats overcommitting.",
-    options: [
-      { value: 'this_week', label: 'This week if possible (move fast)', emoji: '⚡' },
-      { value: 'this_month', label: 'This month (steady pace)', emoji: '📅' },
-      { value: 'few_months', label: 'Next few months (do it right)', emoji: '🗓️' },
-      { value: 'no_rush', label: "No rush (when it's ready)", emoji: '🐢' }
-    ]
-  },
-  { id: 'Q9', type: 'choice-or-custom', question: 'Pick a brand voice that feels closest to you.', helper: 'This shapes everything you create — listings, gigs, copy. Pick what feels natural.',
-    options: [
-      { value: 'casual', label: 'Casual / conversational', emoji: '💬' },
-      { value: 'witty/dry', label: 'Witty / dry', emoji: '😏' },
-      { value: 'warm', label: 'Warm / sentimental', emoji: '💛' },
-      { value: 'professional', label: 'Professional / authoritative', emoji: '💼' },
-      { value: 'premium', label: 'Premium / minimalist', emoji: '✨' },
-      { value: 'unsure', label: 'Not sure yet — recommend one', emoji: '🤷' },
-      { value: 'other', label: 'Other — let me describe it', emoji: '✍️', custom: true }
-    ],
-    customPlaceholder: 'Describe your voice in your own words...'
-  },
-  { id: 'Q10', type: 'text-optional', question: 'Anything else I should know?', helper: 'Optional. Constraints, weird situations, platforms you want to avoid, specific goals. Skip if you\'re good.', placeholder: 'Optional — anything important I should factor in...' }
-];
-
-const state = { screen: 'intro', step: 0, answers: {}, customs: {}, stage1: null, stage2: null, email: '', fallback: null };
-const app = document.getElementById('app');
-
-function render() {
-  if (state.screen === 'intro') return renderIntro();
-  if (state.screen === 'quiz') return renderQuestion();
-  if (state.screen === 'generating') return renderGenerating('Reading your answers...');
-  if (state.screen === 'preview') return renderPreview();
-  if (state.screen === 'email') return renderEmail();
-  if (state.screen === 'sending') return renderGenerating('Researching real market data...');
-  if (state.screen === 'final') return renderFinal(false);
-  if (state.screen === 'queued') return renderFinal(true);
+  
+  recentRequests.push(now);
+  rateLimitMap.set(ip, recentRequests);
+  return true;
 }
 
-function renderIntro() {
-  app.innerHTML = `
-    <div class="eyebrow">Free · No signup to start · 5 minutes</div>
-    <h1 class="intro-h1">Your personalized <span class="accent">AI business roadmap</span>, generated in 5 minutes.</h1>
-    <p class="intro-sub">10 questions. Real research. A specific niche + product + first action — not generic "consider X" advice. Built by Cayde, solo founder building CaydeOS in public.</p>
-    <div class="intro-features">
-      <div class="intro-feature"><div class="intro-feature-icon"></div><div>A specific niche recommendation matched to your actual constraints</div></div>
-      <div class="intro-feature"><div class="intro-feature-icon"></div><div>Real market data — live pricing, competitors, and gaps via web search</div></div>
-      <div class="intro-feature"><div class="intro-feature-icon"></div><div>A realistic first 30 days scenario based on your time and budget</div></div>
-    </div>
-    <button class="btn-primary" onclick="startQuiz()">Start the quiz →</button>
-  `;
-}
+// ============================================
+// STAGE 1: HAIKU PREVIEW (no web_search)
+// ============================================
+const STAGE_1_SYSTEM_PROMPT = `You are the Cayde AI free tool — Stage 1: niche recommendation engine.
 
-function renderQuestion() {
-  const q = QUESTIONS[state.step];
-  const progress = ((state.step + 1) / QUESTIONS.length) * 100;
-  const isLast = state.step === QUESTIONS.length - 1;
-  const questionText = q.questionFn ? q.questionFn(state.answers) : q.question;
-  const helperText = q.helperFn ? q.helperFn(state.answers) : q.helper;
-  const placeholder = q.placeholderFn ? q.placeholderFn(state.answers) : q.placeholder;
+Your job: Take a user's 10 question answers and recommend ONE specific niche + business path that fits them. This is the preview shown in their browser BEFORE they submit their email for the full roadmap.
 
-  let body = '';
-  if (q.type === 'choice') {
-    body = `<div class="options">` + q.options.map(opt => `<button class="option ${state.answers[q.id] === opt.value ? 'selected' : ''}" onclick="selectChoice('${q.id}','${opt.value}')"><span class="option-emoji">${opt.emoji}</span><span>${opt.label}</span></button>`).join('') + `</div>`;
-  } else if (q.type === 'choice-or-custom') {
-    body = `<div class="options">` + q.options.map(opt => `<button class="option ${state.answers[q.id] === opt.value ? 'selected' : ''}" onclick="selectChoice('${q.id}','${opt.value}')"><span class="option-emoji">${opt.emoji}</span><span>${opt.label}</span></button>`).join('') + `</div>`;
-    if (state.answers[q.id] === 'other') {
-      body += `<div class="custom-text-wrap"><input type="text" class="text-input" placeholder="${q.customPlaceholder || ''}" value="${state.customs[q.id] || ''}" oninput="setCustom('${q.id}', this.value)" /></div>`;
-    }
-  } else if (q.type === 'text') {
-    body = `<textarea class="text-area" placeholder="${placeholder || ''}" oninput="setText('${q.id}', this.value)">${state.answers[q.id] || ''}</textarea>`;
-  } else if (q.type === 'text-optional') {
-    body = `<textarea class="text-area" placeholder="${q.placeholder || ''}" oninput="setText('${q.id}', this.value)">${state.answers[q.id] || ''}</textarea>`;
-  }
+CRITICAL: You have NO web search access. Generate from training knowledge only. Stage 2 (after email capture) will validate your recommendation with live market data. Your job is to make a SHARP, COMMITTED recommendation that Stage 2 can deepen — not a generic one that Stage 2 has to replace.
 
-  const canAdvance = canAdvanceFrom(q);
-  const advanceLabel = isLast ? 'Generate my roadmap →' : 'Next →';
+OUTPUT FORMAT — exactly this structure (raw text, no markdown headers):
 
-  app.innerHTML = `
-    <div class="progress-wrap">
-      <div class="progress"><div class="progress-fill" style="width: ${progress}%"></div></div>
-      <div class="progress-label">Question ${state.step + 1} of ${QUESTIONS.length}</div>
-    </div>
-    <h2 class="question">${questionText}</h2>
-    <p class="helper">${helperText || ''}</p>
-    ${body}
-    <div class="nav-row">
-      <button class="btn-ghost" onclick="goBack()" ${state.step === 0 ? 'style="visibility:hidden"' : ''}>← Back</button>
-      <button class="btn-primary" onclick="goNext()" ${canAdvance ? '' : 'disabled'}>${advanceLabel}</button>
-    </div>
-  `;
-}
+NICHE_NAME: [Specific niche name, 3-8 words. NOT a category.]
+VERDICT: [GREEN/YELLOW/RED] ([score]/100 estimated)
+WHY_IT_FITS_YOU: [1 paragraph, 80-120 words. Reference at least 3 specific things the user said.]
+PRODUCT_TYPE: [POD/Service/Digital/Software — pick one, no hedging]
+ONE_LINE_TEASER: [1 sentence preview of the full roadmap.]
 
-function canAdvanceFrom(q) {
-  const a = state.answers[q.id];
-  if (q.type === 'text-optional') return true;
-  if (q.type === 'text') return a && a.trim().length > 0;
-  if (q.type === 'choice') return !!a;
-  if (q.type === 'choice-or-custom') {
-    if (!a) return false;
-    if (a === 'other') return (state.customs[q.id] || '').trim().length > 0;
-    return true;
-  }
-  return false;
-}
+DISCIPLINE:
+1. SPECIFICITY: The niche must be narrow enough that someone could start tomorrow.
+2. CONSTRAINT FIT: Product type recommendation must honestly match time + capital + skills + speed.
+3. NO CONTRADICTIONS: Read Q10 carefully for explicit exclusions.
+4. DEFAULT_BIAS: When user is "unsure" on Q6, weight toward POD or Digital.
+5. AUDIENCE PROMOTION: If Q7 = mid or large, Digital and Software get a score bump.
+6. HONESTY ON YELLOW/RED: If constraints don't support strong recommendation, score honestly.
+7. NO HEDGING IN TEASER: Be specific and confident.
+8. NEVER fabricate specific prices, shop names, or competitor info. Stage 2 fills those.
 
-function renderGenerating(msg) {
-  app.innerHTML = `<div class="loading"><div class="loading-eyebrow">▸ Working</div><div class="spinner"></div><div class="loading-msg" id="loadingMsg">${msg}</div><div class="loading-sub">This takes ~10–30 seconds.</div></div>`;
-}
+Generate Stage 1 output now.`;
 
-function renderPreview() {
-  const s1 = parseStage1(state.stage1);
-  const verdictClass = s1.verdict.includes('GREEN') ? 'verdict-green' : s1.verdict.includes('YELLOW') ? 'verdict-yellow' : 'verdict-red';
-  app.innerHTML = `
-    <div class="preview-eyebrow">✓ Preview ready</div>
-    <h2 class="preview-niche">${escapeHtml(s1.niche)}</h2>
-    <div class="verdict-pill ${verdictClass}">${escapeHtml(s1.verdict)}</div>
-    <p class="preview-body">${escapeHtml(s1.why)}</p>
-    <div class="preview-meta-row">
-      <div><span class="preview-meta-label">Recommended type</span><span class="preview-meta-val">${escapeHtml(s1.productType)}</span></div>
-    </div>
-    <div class="preview-teaser">${escapeHtml(s1.teaser)}</div>
-    <button class="btn-primary full" onclick="goToEmail()">Get my full roadmap →</button>
-  `;
-}
+async function callStage1(userAnswers, env) {
+  const userMessage = `Here are the user's 10 question answers:\n\n${JSON.stringify(userAnswers, null, 2)}\n\nGenerate the Stage 1 output.`;
 
-function renderEmail() {
-  app.innerHTML = `
-    <div class="eyebrow">▸ Last step</div>
-    <h2 class="email-h">Where should I send your full personalized roadmap?</h2>
-    <p class="email-sub">Includes the complete niche analysis with real market data, recommended product spec, first 30 days scenario, and your handoff block. 100% free.</p>
-    <div class="email-form">
-      <input type="email" class="text-input" placeholder="you@example.com" id="emailInput" oninput="state.email = this.value" onkeydown="if(event.key==='Enter') submitEmail()" />
-      <button class="btn-primary full" onclick="submitEmail()" id="emailSubmitBtn">Send me my roadmap →</button>
-      <p class="email-fine">You'll also get the Building CaydeAI newsletter — solo founder build updates every Friday. Unsubscribe anytime. I read every reply.</p>
-    </div>
-    <div class="nav-row" style="margin-top:24px">
-      <button class="btn-ghost" onclick="state.screen='preview';render()">← Back to preview</button>
-    </div>
-  `;
-  setTimeout(() => document.getElementById('emailInput')?.focus(), 100);
-}
-
-function renderFinal(isQueued) {
-  const s1 = parseStage1(state.stage1);
-  const niche = s1.niche || 'roadmap';
-  const headlineCopy = isQueued
-    ? `Your <span class="accent">${escapeHtml(niche)}</span> is on the way.`
-    : `Your <span class="accent">${escapeHtml(niche)}</span> is in your inbox.`;
-  const subCopy = isQueued
-    ? `Traffic is heavy right now — your full personalized roadmap is being generated and will arrive at <strong style="color:var(--text-1)">${escapeHtml(state.email)}</strong> within ~10 minutes.`
-    : `The full personalized roadmap — niche profile, recommended path, first 30 days, and your handoff block — is being sent to your inbox now.`;
-
-  app.innerHTML = `
-    <div class="final-wrap">
-      <div class="final-eyebrow">${isQueued ? '▸ Generating' : '✓ Sent'}</div>
-      <h1 class="final-h">${headlineCopy}</h1>
-      <p class="final-sub">${subCopy}</p>
-      <div class="final-email-card"><div class="final-email-card-icon"></div><span>${escapeHtml(state.email)}</span></div>
-    </div>
-
-    <div class="final-divider"></div>
-
-    <div class="pitch-eyebrow">▸ Now actually build it</div>
-    <h2 class="pitch-h">Your roadmap tells you <span class="accent">what</span> to build.<br/>The Workshop walks you through <span class="accent">how</span>.</h2>
-    <p class="pitch-sub">Your roadmap ends with a handoff block — paste it into The Workshop's product-shaper skill and skip straight to building. No re-explaining your niche, no starting from scratch.</p>
-
-    <div class="pitch-features">
-      <div class="pitch-feature">
-        <div class="pitch-feature-num">01</div>
-        <div>
-          <div class="pitch-feature-title">product-shaper</div>
-          <div class="pitch-feature-desc">Takes your roadmap and refines it into a real product spec with SKU lineup, price tier, and platform fit.</div>
-        </div>
-      </div>
-      <div class="pitch-feature">
-        <div class="pitch-feature-num">02</div>
-        <div>
-          <div class="pitch-feature-title">product-drafter</div>
-          <div class="pitch-feature-desc">Generates your first listings, gigs, or products in your brand voice — paste-ready for Etsy, Fiverr, Gumroad.</div>
-        </div>
-      </div>
-      <div class="pitch-feature">
-        <div class="pitch-feature-num">03</div>
-        <div>
-          <div class="pitch-feature-title">launch-stack</div>
-          <div class="pitch-feature-desc">Walks you through storefront setup, automation, and launch day — for your specific product type.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="pitch-price-row">
-      <div class="pitch-price">$47</div>
-      <div class="pitch-price-sub">one-time, lifetime updates</div>
-    </div>
-
-    <div class="cta-stack">
-      <a class="cta-link" href="https://caydenfrank.gumroad.com/l/the-workshop" target="_blank">Get The Workshop →</a>
-      <a class="cta-link-ghost" href="https://caydeai.carrd.co" target="_blank">Follow the 90-day build at caydeai</a>
-    </div>
-  `;
-}
-
-function startQuiz() { state.screen = 'quiz'; state.step = 0; render(); }
-
-function selectChoice(qid, val) { state.answers[qid] = val; render(); }
-function setCustom(qid, val) {
-  state.customs[qid] = val;
-  const q = QUESTIONS.find(x => x.id === qid);
-  const canAdv = canAdvanceFrom(q);
-  const nextBtn = document.querySelector('.btn-primary');
-  if (nextBtn) nextBtn.disabled = !canAdv;
-}
-function setText(qid, val) {
-  state.answers[qid] = val;
-  const q = QUESTIONS.find(x => x.id === qid);
-  const canAdv = canAdvanceFrom(q);
-  const nextBtn = document.querySelector('.btn-primary');
-  if (nextBtn) nextBtn.disabled = !canAdv;
-}
-
-function goBack() { if (state.step > 0) { state.step--; render(); } }
-
-async function goNext() {
-  if (state.step < QUESTIONS.length - 1) { state.step++; render(); }
-  else { await submitStage1(); }
-}
-
-function goToEmail() { state.screen = 'email'; render(); }
-
-async function submitStage1() {
-  state.screen = 'generating';
-  render();
-  rotateLoadingMessages(['Reading your answers...', 'Matching to constraints...', 'Picking your niche...']);
-
-  const payload = { ...state.answers };
-  ['Q5', 'Q6', 'Q9'].forEach(qid => {
-    if (payload[qid] === 'other' && state.customs[qid]) payload[qid] = state.customs[qid];
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      system: STAGE_1_SYSTEM_PROMPT,
+      messages: [
+        { role: 'user', content: userMessage }
+      ]
+    })
   });
 
-  try {
-    const res = await fetch(`${WORKER_URL}/stage1`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: payload })
-    });
-    if (!res.ok) throw new Error(`Stage 1 failed: ${res.status}`);
-    const data = await res.json();
-    state.stage1 = data.stage1;
-    state.screen = 'preview';
-    render();
-  } catch (err) {
-    console.error(err);
-    alert('Something went wrong generating your preview. Please try again in a minute, or reload the page.');
-    state.screen = 'quiz';
-    render();
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Stage 1 API error: ${response.status} - ${errorText}`);
   }
+
+  const data = await response.json();
+  return data.content[0].text;
 }
 
-async function submitEmail() {
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email || '');
-  if (!emailValid) { alert('Please enter a valid email address.'); return; }
-  const btn = document.getElementById('emailSubmitBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+// ============================================
+// STAGE 2: SONNET + WEB_SEARCH (full roadmap)
+// ============================================
+const STAGE_2_SYSTEM_PROMPT = `You are the Cayde AI free tool — Stage 2: full personalized roadmap generator.
 
-  state.screen = 'sending';
-  render();
-  rotateLoadingMessages(['Researching real market data...', 'Pulling competitor pricing...', 'Building your 30-day plan...', 'Writing your handoff block...']);
+Your job: Validate and expand the niche/path that Stage 1 already committed to, using live web research. Generate the full roadmap that gets emailed to the user, then a structured handoff block for the Workshop's product-shaper skill.
 
-  const payload = { ...state.answers };
-  ['Q5', 'Q6', 'Q9'].forEach(qid => {
-    if (payload[qid] === 'other' && state.customs[qid]) payload[qid] = state.customs[qid];
+CRITICAL CONSTRAINT — COHERENCE PROTECTION:
+Stage 1 already told the user a specific niche + product type + traffic-light score. They saw it in their browser. They submitted their email expecting MORE DEPTH on that niche, not a different niche.
+
+DEFAULT BEHAVIOR: Treat Stage 1's niche as committed. Web search to DEEPEN it with real prices, real competitors, real gaps. The full roadmap is the same niche, just researched.
+
+PIVOT BEHAVIOR (rare): ONLY if web research reveals a FUNDAMENTAL PROBLEM (legal issue, severe saturation, platform ban risk). When pivoting: explicitly name what Stage 1 missed, explain why pivot is necessary, recommend the new niche. NEVER silent flip.
+
+WEB SEARCH DISCIPLINE:
+- Minimum 3 distinct searches before drafting
+- DATE-STAMP and HEDGE all cited specifics: "As of May 2026, top sellers price around $32-42 — verify current"
+- NEVER assert specific prices/shops as standing fact
+- If web search returns thin data, say so explicitly
+- HEDGE UNVERIFIED GAPS: If you could not confirm a specific price/shop/platform/competitor via search, say so explicitly and give a directional range. NEVER state an unverified specific as fact. This applies whether the gap is because searches didn't cover it OR because no search returned that data.
+
+OUTPUT FORMAT — exactly this structure (full markdown):
+
+# YOUR PERSONALIZED AI BUSINESS ROADMAP
+
+## TL;DR
+
+[2-3 sentences. Match Stage 1's commitment.]
+
+## Your Niche Profile
+
+[200-300 words. Specific niche, target buyer persona, why it fits their answers, current market state with date-stamps.]
+
+## Your Recommended Path
+
+[300-400 words. Specific product type, format, price tier with reasoning, platform choice with reasoning, first product concept, timeline.]
+
+## Your First 30 Days
+
+[100-150 words. Realistic scenario based on their hours + capital + audience.]
+
+## Your First Concrete Action
+
+[1 specific action they can take today.]
+
+---
+
+## Ready to Build This?
+
+The Workshop ($47) walks you through actually building this niche into a live business:
+
+- **product-shaper** — refines this roadmap into a real product spec
+- **product-drafter** — generates your first listings, gigs, or products
+- **launch-stack** — sets up your storefront and walks you through launch day
+- Plus the full CaydeOS framework + walkthrough video
+
+Your roadmap from this tool already plugs into the Workshop's skills. Paste the handoff block below into product-shaper when you start.
+
+[caydenfrank.gumroad.com/l/the-workshop](https://caydenfrank.gumroad.com/l/the-workshop)
+
+---
+
+[CAYDEAI-FREETOOL-HANDOFF v1]
+
+═══════════════════════════════════════
+COPY THIS BLOCK INTO product-shaper:
+═══════════════════════════════════════
+
+NICHE: [specific niche name]
+TARGET_BUYER: [specific persona]
+RECOMMENDED_PRODUCT_TYPE: [POD/Service/Digital/Software]
+RECOMMENDED_FORMAT: [specific format]
+RECOMMENDED_PRICE_TIER: [$X-Y]
+RECOMMENDED_PLATFORM: [Etsy/Fiverr/Gumroad/own-site]
+KEY_DIFFERENTIATION: [specific gap]
+BRAND_VOICE: [from Q9]
+
+USER_CONSTRAINTS:
+- Time_available: [from Q3]
+- Starting_capital: [from Q4]
+- Technical_comfort: [from Q5]
+- Existing_audience: [from Q7]
+- Launch_speed: [from Q8]
+
+USER_NOTES: [Q10 input or "none"]
+
+═══════════════════════════════════════
+
+---
+
+*PS — You're now on the Building CaydeAI newsletter. I send build updates every Friday. Reply to this email and I'll read it — I run everything solo.*
+
+— Cayde
+
+DISCIPLINE:
+1. The [CAYDEAI-FREETOOL-HANDOFF v1] line is the MACHINE SENTINEL. Must appear EXACTLY, on its own line, before the handoff block. Do not modify.
+2. NEVER write "I don't have web search" — you DO have it, use it.
+3. Match brand voice from Q9 throughout.
+4. NO HEDGING ON COMMITMENT, ONLY ON DATA.
+5. RED VERDICTS: Update Stage 1's score if research reveals different reality. Honesty over consistency.
+6. PIVOT TRANSPARENCY: If pivoting, open "Your Niche Profile" with "Note: After researching this niche live, I'd actually recommend a small pivot..."
+7. NO RESEARCH NARRATION. Do NOT narrate your research process. Do NOT write phrases like "I'll now research...", "Let me search for...", "Perfect, the research confirms...", "Now I have full validation...", or any commentary on what you're doing as you do it. The user sees ONLY the final roadmap. Your first output character must be the "#" of "# YOUR PERSONALIZED AI BUSINESS ROADMAP". Research happens silently via tool calls; the user-facing text starts at the heading.
+
+Generate Stage 2 output now.`;
+
+async function callStage2(userAnswers, stage1Output, env) {
+  const userMessage = `Here are the user's 10 question answers:\n\n${JSON.stringify(userAnswers, null, 2)}\n\n---\n\nStage 1 already returned this to the user:\n\n${stage1Output}\n\n---\n\nGenerate the Stage 2 full roadmap with web_search. Validate and expand Stage 1's niche. Use the [CAYDEAI-FREETOOL-HANDOFF v1] sentinel exactly as specified.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      // ════════════════════════════════════════════════════════════
+      // STAGE 2 MODEL = HAIKU 4.5 (switched 2026-05-16 evening from Sonnet 4.6)
+      // REASON: Sonnet 4.6 + web_search overhead exceeds Tier 1 30K input/min
+      //   even at max_uses=1. Haiku 4.5 has lighter per-call input footprint
+      //   AND higher Tier 1 limits, so it fits with max_uses=4 for grounding.
+      // QUALITY TRADEOFF: Weaker synthesis than Sonnet — Stage 2 prompt's
+      //   hedging-on-unverified-facts discipline becomes MORE load-bearing.
+      // REVERT TO SONNET ON DAY 31 (JUNE 2, 2026) when Tier 2 unlocks.
+      // ════════════════════════════════════════════════════════════
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      system: STAGE_2_SYSTEM_PROMPT,
+      tools: [
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          // ════════════════════════════════════════════════════════════
+          // max_uses: 4 = TIER 1 + HAIKU CONFIG (set 2026-05-16 evening)
+          // Tried with Sonnet: max_uses=3 → 429, max_uses=1 → 429.
+          // Switched model to Haiku to fit Tier 1; restored search depth
+          // to 4 (one above niche-scout's locked min of 3) for grounding,
+          // since Haiku needs more concrete data than Sonnet does.
+          // REVERT TO max_uses: 8 + MODEL: SONNET ON DAY 31 (JUNE 2, 2026).
+          // See file header for full revert checklist.
+          // ════════════════════════════════════════════════════════════
+          max_uses: 4
+        }
+      ],
+      messages: [
+        { role: 'user', content: userMessage }
+      ]
+    })
   });
 
-  try {
-    const res = await fetch(`${WORKER_URL}/stage2`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: payload, stage1: state.stage1, email: state.email })
-    });
-    if (!res.ok) throw new Error('Stage 2 request failed');
-    const data = await res.json();
-
-    if (data.status === 'success' && data.stage2) {
-      state.stage2 = data.stage2;
-      state.screen = 'final';
-      render();
-    } else if (data.status === 'queued') {
-      state.fallback = data.stage1_fallback || state.stage1;
-      state.screen = 'queued';
-      render();
-    } else {
-      state.fallback = state.stage1;
-      state.screen = 'queued';
-      render();
-    }
-  } catch (err) {
-    console.error(err);
-    state.fallback = state.stage1;
-    state.screen = 'queued';
-    render();
+  if (!response.ok) {
+    const errorText = await response.text();
+    // Throw with status code preserved so caller can detect 429 specifically
+    const error = new Error(`Stage 2 API error: ${response.status} - ${errorText}`);
+    error.status = response.status;
+    error.body = errorText;
+    throw error;
   }
-}
 
-function parseStage1(raw) {
-  if (!raw) return { niche: '', verdict: '', why: '', productType: '', teaser: '' };
-  const get = (label) => {
-    const re = new RegExp(`${label}:\\s*([\\s\\S]*?)(?=\\n[A-Z_]+:|$)`, 'i');
-    const m = raw.match(re);
-    return m ? m[1].trim() : '';
+  const data = await response.json();
+  
+  const textContent = data.content
+    .filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('\n');
+  
+  // Return both text and usage so caller can log token margin (bar 2)
+  return {
+    text: textContent,
+    usage: data.usage || null
   };
-  return { niche: get('NICHE_NAME'), verdict: get('VERDICT'), why: get('WHY_IT_FITS_YOU'), productType: get('PRODUCT_TYPE'), teaser: get('ONE_LINE_TEASER') };
 }
 
-function escapeHtml(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+// ============================================
+// BEEHIIV: Subscribe email + enroll in Roadmap automation
+// ============================================
+// CRITICAL (locked 2026-05-16 ~3:55am):
+// Beehiiv's "Added by API" trigger does NOT fire on basic /subscriptions POST.
+// To enroll a subscriber in a specific automation, the subscribe call MUST
+// include `automation_ids` with the target automation UUID.
+// Without this, the welcome email fires (Beehiiv default) but our Roadmap
+// automation never receives the subscriber, so no roadmap email is sent.
+const ROADMAP_AUTOMATION_ID = '937cc25b-bffa-4e43-9a65-e3cd725903da';
+
+async function subscribeToBeehiiv(email, env) {
+  const response = await fetch(
+    `https://api.beehiiv.com/v2/publications/${env.BEEHIIV_PUBLICATION_ID}/subscriptions`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.BEEHIIV_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email,
+        reactivate_existing: true,
+        send_welcome_email: false,
+        utm_source: 'cayde_ai_free_tool',
+        utm_medium: 'free_tool',
+        utm_campaign: 'roadmap_capture',
+        // Enroll subscriber in Roadmap automation (fires "Added by API" trigger)
+        automation_ids: [ROADMAP_AUTOMATION_ID],
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Beehiiv subscribe error: ${response.status} - ${errorText}`);
+    return { success: false, subscriptionId: null };
+  }
+
+  const data = await response.json();
+  // Beehiiv returns the subscription object; grab the ID for follow-up custom-field update
+  const subscriptionId = data?.data?.id || null;
+  return { success: true, subscriptionId };
 }
 
-function rotateLoadingMessages(messages) {
-  let i = 0;
-  const interval = setInterval(() => {
-    const el = document.getElementById('loadingMsg');
-    if (!el) { clearInterval(interval); return; }
-    i = (i + 1) % messages.length;
-    el.textContent = messages[i];
-  }, 3500);
+// Update the subscriber with the full roadmap in custom fields, then tag for automation
+// This triggers the Beehiiv automation that emails the roadmap to the user.
+//
+// FIX (2026-05-16 ~3am): Beehiiv has no PATCH-by-email endpoint (returns 404).
+// We must use the subscription ID returned from the subscribe step.
+// If subscriptionId is missing, look it up via the by-email GET, then PATCH by ID.
+// Tags need a separate POST endpoint in Beehiiv's API; we call it after the PATCH.
+async function deliverRoadmapViaBeehiiv(email, roadmapMarkdown, subscriptionId, env) {
+  try {
+    // If we don't have a subscriptionId, look it up by email (GET endpoint exists)
+    let subId = subscriptionId;
+    if (!subId) {
+      const lookupRes = await fetch(
+        `https://api.beehiiv.com/v2/publications/${env.BEEHIIV_PUBLICATION_ID}/subscriptions/by_email/${encodeURIComponent(email)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${env.BEEHIIV_API_KEY}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      if (!lookupRes.ok) {
+        const errorText = await lookupRes.text();
+        console.error(`Beehiiv lookup error: ${lookupRes.status} - ${errorText}`);
+        return false;
+      }
+      const lookupData = await lookupRes.json();
+      subId = lookupData?.data?.id;
+      if (!subId) {
+        console.error(`Beehiiv lookup: no subscription id returned for ${email}`);
+        return false;
+      }
+    }
+
+    // PATCH subscription by ID with custom_fields containing the roadmap
+    const patchRes = await fetch(
+      `https://api.beehiiv.com/v2/publications/${env.BEEHIIV_PUBLICATION_ID}/subscriptions/${subId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${env.BEEHIIV_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          custom_fields: [
+            { name: 'roadmap', value: roadmapMarkdown }
+          ]
+        })
+      }
+    );
+
+    if (!patchRes.ok) {
+      const errorText = await patchRes.text();
+      console.error(`Beehiiv PATCH error: ${patchRes.status} - ${errorText}`);
+      return false;
+    }
+
+    // POST the trigger tag to a separate tags endpoint
+    // Endpoint: POST /publications/{pub_id}/subscriptions/{sub_id}/tags
+    const tagRes = await fetch(
+      `https://api.beehiiv.com/v2/publications/${env.BEEHIIV_PUBLICATION_ID}/subscriptions/${subId}/tags`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.BEEHIIV_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tags: ['roadmap_ready']
+        })
+      }
+    );
+
+    if (!tagRes.ok) {
+      const errorText = await tagRes.text();
+      console.error(`Beehiiv TAG error: ${tagRes.status} - ${errorText}`);
+      // Custom field was set, but tag failed — automation won't fire
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Beehiiv deliver exception:', err.message);
+    return false;
+  }
 }
 
-render();
-</script>
+// ============================================
+// MAIN REQUEST HANDLER
+// ============================================
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
 
-</body>
-</html>
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: CORS_HEADERS });
+    }
+
+    // Allow GET for /test endpoint (browser-testable)
+    if (request.method !== 'POST' && url.pathname !== '/test') {
+      return new Response('Method not allowed. Use POST for /stage1 and /stage2, or visit /test in browser.', { 
+        status: 405,
+        headers: CORS_HEADERS 
+      });
+    }
+
+    // Rate limiting by IP
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    if (!checkRateLimit(ip)) {
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded. Try again in a minute.' 
+      }), {
+        status: 429,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+      });
+    }
+
+    try {
+      // Route: /stage1 — Browser preview (cheap)
+      if (url.pathname === '/stage1') {
+        const body = await request.json();
+        const { answers } = body;
+        if (!answers) {
+          return new Response(JSON.stringify({ error: 'Missing answers' }), {
+            status: 400,
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const stage1Output = await callStage1(answers, env);
+        return new Response(JSON.stringify({ stage1: stage1Output }), {
+          status: 200,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Route: /stage2 — Full roadmap + email (expensive)
+      // ORDERING (critical, locked 2026-05-16):
+      //   1. Validate inputs
+      //   2. Subscribe to Beehiiv FIRST — email captured no matter what happens with Stage 2
+      //   3. Try Stage 2
+      //   4a. If Stage 2 succeeds → deliver roadmap via Beehiiv custom-field+tag, return full roadmap to browser
+      //   4b. If Stage 2 fails (429 or otherwise) → return Stage 1 preview to browser with "full version coming via email" message, log the failure for manual recovery
+      if (url.pathname === '/stage2') {
+        const body = await request.json();
+        const { answers, stage1, email } = body;
+        if (!answers || !stage1 || !email) {
+          return new Response(JSON.stringify({ 
+            error: 'Missing answers, stage1, or email' 
+          }), {
+            status: 400,
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return new Response(JSON.stringify({ error: 'Invalid email' }), {
+            status: 400,
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // STEP 1: Subscribe to Beehiiv FIRST (email captured regardless of Stage 2 outcome)
+        const subResult = await subscribeToBeehiiv(email, env);
+        if (!subResult.success) {
+          console.error(`Failed to subscribe ${email} to Beehiiv — proceeding with Stage 2 anyway`);
+        }
+
+        // STEP 2: Try Stage 2
+        try {
+          const stage2Result = await callStage2(answers, stage1, env);
+          const stage2Output = stage2Result.text;
+
+          // Log token usage so launch monitoring can verify bar 2 (real margin under 30K/min)
+          console.log(`STAGE_2_SUCCESS email=${email} input_tokens=${stage2Result.usage?.input_tokens || 'unknown'} output_tokens=${stage2Result.usage?.output_tokens || 'unknown'}`);
+
+          // Deliver via Beehiiv custom-field + tag (triggers automation in Beehiiv UI)
+          const delivered = await deliverRoadmapViaBeehiiv(email, stage2Output, subResult.subscriptionId, env);
+          if (!delivered) {
+            console.error(`STAGE_2_DELIVERY_FAILED email=${email} — roadmap generated but Beehiiv update failed. Manual recovery needed.`);
+          }
+
+          return new Response(JSON.stringify({ 
+            status: 'success',
+            stage2: stage2Output,
+            subscribed: subResult.success,
+            delivered: delivered,
+            email: email
+          }), {
+            status: 200,
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+          });
+
+        } catch (stage2Err) {
+          // STAGE 2 FAILED — graceful degradation path
+          // Log full context for manual recovery (Cloudflare Worker logs)
+          const isRateLimit = stage2Err.status === 429;
+          const failureType = isRateLimit ? 'RATE_LIMIT' : 'OTHER_ERROR';
+          
+          console.error(`STAGE_2_FAILED type=${failureType} email=${email} status=${stage2Err.status} message=${stage2Err.message}`);
+          console.error(`STAGE_2_FAILED_CONTEXT_FOR_MANUAL_RECOVERY email=${email} answers=${JSON.stringify(answers)} stage1=${stage1.substring(0, 500)}`);
+
+          // Return success-shaped response with Stage 1 preview as the "something useful in hand" deliverable
+          // Frontend should display: Stage 1 preview + "Your full personalized version is coming to your inbox within 10 minutes."
+          return new Response(JSON.stringify({ 
+            status: 'queued',
+            stage2: null,
+            stage1_fallback: stage1,
+            subscribed: subResult.success,
+            delivered: false,
+            email: email,
+            message: 'Your full personalized roadmap is being generated and will arrive in your inbox within 10 minutes. Here\'s the preview again while you wait:'
+          }), {
+            // Return 200 (success-shaped) — user-facing UX should not see this as an error
+            status: 200,
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      // Route: /test — Phase 3 gate verification (GET allowed)
+      // Exercises full path: Stage 1 → Beehiiv subscribe → Stage 2 → Beehiiv deliver
+      // Uses a known test email so it doesn't pollute real subscriber list
+      if (url.pathname === '/test') {
+        const testAnswers = {
+          Q1: 'no_or_kind_of',
+          Q2: 'I love dogs and vintage aesthetics',
+          Q3: '10-20',
+          Q4: '$100-500',
+          Q5: 'no-code tools',
+          Q6: 'POD',
+          Q7: 'small',
+          Q8: 'this_month',
+          Q9: 'witty/dry',
+          Q10: 'I want to focus on Etsy'
+        };
+
+        const stage1 = await callStage1(testAnswers, env);
+
+        let stage2Text = '';
+        let stage2Usage = null;
+        let stage2Error = null;
+        try {
+          const stage2Result = await callStage2(testAnswers, stage1, env);
+          stage2Text = stage2Result.text;
+          stage2Usage = stage2Result.usage;
+        } catch (err) {
+          stage2Error = { status: err.status, message: err.message };
+        }
+
+        const hasSentinel = stage2Text.includes('[CAYDEAI-FREETOOL-HANDOFF v1]');
+
+        return new Response(JSON.stringify({ 
+          status: hasSentinel ? 'PHASE_3_VERIFIED' : (stage2Error ? 'PHASE_3_STAGE_2_ERROR' : 'PHASE_3_FAILED_NO_SENTINEL'),
+          gate_state: 'OPEN_until_3_bars_pass',
+          bar_1_sentinel_present: hasSentinel,
+          bar_2_token_usage: stage2Usage,
+          bar_2_note: 'Verify input_tokens has real margin under Tier 1 30K/min limit',
+          bar_3_note: 'Force a 429 separately to verify graceful degradation path returns Stage 1 fallback',
+          stage1_preview: stage1,
+          stage2_preview: stage2Text ? stage2Text.substring(0, 2000) + '...' : null,
+          stage2_full_length: stage2Text.length,
+          stage2_error: stage2Error
+        }, null, 2), {
+          status: 200,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response('Not found. Available endpoints: /stage1 (POST), /stage2 (POST), /test (GET).', { 
+        status: 404, 
+        headers: CORS_HEADERS 
+      });
+
+    } catch (error) {
+      console.error('Worker error:', error);
+      return new Response(JSON.stringify({ 
+        error: error.message,
+        stack: error.stack 
+      }), {
+        status: 500,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+      });
+    }
+  }
+};
