@@ -7,222 +7,213 @@
 <meta name="description" content="Get a personalized AI business roadmap in 5 minutes. Built by Cayde, solo founder of CaydeOS." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
-  /* ============ Ember palette (BRAND_BIBLE locked) ============ */
   :root {
-    --void: #0C0804;
-    --deep-ember: #180E06;
-    --ember-dark: #301806;
-    --ash: #7A5030;
-    --sand: #B89070;
-    --linen: #F0E0CC;
+    --bg: #08070A;
+    --surface: #0E0C0F;
+    --surface-2: #14111A;
+    --border: #1F1A23;
+    --border-strong: #2A2330;
+    --text-1: #F4ECE0;
+    --text-2: #8A7E70;
+    --text-3: #5A5048;
     --ember: #E8906A;
-    --ember-hover: #f0a589;
-    --moss: #4CAF50;
+    --ember-hover: #F2A283;
+    --ember-soft: rgba(232,144,106,0.10);
+    --ember-border: rgba(232,144,106,0.25);
+    --moss: #5DBA62;
     --rose: #E85555;
-    --radius-card: 10px;
-    --radius-btn: 7px;
+    --r-card: 14px;
+    --r-btn: 8px;
+    --r-input: 8px;
   }
 
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--void); color: var(--linen); font-family: 'Montserrat', sans-serif; min-height: 100vh; }
-  body { display: flex; flex-direction: column; align-items: center; padding: 24px 16px 48px; }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-1); font-family: 'Inter', sans-serif; min-height: 100vh; }
+  body { display: flex; flex-direction: column; align-items: center; padding: 32px 20px 64px; line-height: 1.5; }
 
-  /* ============ Header ============ */
-  .header { width: 100%; max-width: 720px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding: 0 4px; }
-  .logo { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 14px; color: var(--ember); letter-spacing: 0.05em; }
-  .logo span { color: var(--sand); }
-  .header-link { font-size: 13px; color: var(--sand); text-decoration: none; }
-  .header-link:hover { color: var(--linen); }
+  .header { width: 100%; max-width: 680px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 48px; }
+  .logo { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 13px; color: var(--text-2); letter-spacing: 0.05em; }
+  .logo .accent { color: var(--ember); }
+  .logo .sep { color: var(--text-3); margin: 0 8px; }
+  .header-link { font-size: 13px; color: var(--text-2); text-decoration: none; transition: color 0.15s; }
+  .header-link:hover { color: var(--text-1); }
 
-  /* ============ Card container ============ */
   .card {
-    width: 100%; max-width: 720px;
-    background: var(--deep-ember);
-    border: 0.5px solid var(--ember-dark);
-    border-radius: var(--radius-card);
-    padding: 40px 32px;
+    width: 100%; max-width: 680px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: 56px 48px;
     animation: fadeIn 0.4s ease-out;
   }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* ============ Intro screen ============ */
-  .intro-tag { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ember); letter-spacing: 0.1em; margin-bottom: 16px; text-transform: uppercase; }
-  .intro-h1 { font-size: 36px; font-weight: 800; line-height: 1.15; margin: 0 0 16px; color: var(--linen); letter-spacing: -0.01em; }
+  h1, h2, h3 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; color: var(--text-1); }
+  h1 { font-size: 44px; font-weight: 700; }
+  h2 { font-size: 30px; font-weight: 600; }
+  p { margin: 0; }
+
+  .eyebrow { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ember); letter-spacing: 0.12em; margin-bottom: 24px; text-transform: uppercase; padding: 6px 10px; background: var(--ember-soft); border: 1px solid var(--ember-border); border-radius: 6px; }
+  .intro-h1 { margin-bottom: 20px; }
   .intro-h1 .accent { color: var(--ember); }
-  .intro-sub { font-size: 16px; line-height: 1.6; color: var(--sand); margin-bottom: 32px; }
-  .intro-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; }
-  .intro-meta-item { font-size: 13px; color: var(--sand); display: flex; align-items: center; gap: 8px; }
-  .intro-meta-dot { width: 6px; height: 6px; background: var(--ember); border-radius: 50%; }
+  .intro-sub { font-size: 17px; line-height: 1.6; color: var(--text-2); margin-bottom: 36px; max-width: 540px; }
+  .intro-features { display: flex; flex-direction: column; gap: 14px; margin-bottom: 40px; }
+  .intro-feature { display: flex; align-items: flex-start; gap: 12px; font-size: 15px; color: var(--text-1); }
+  .intro-feature-icon { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; background: var(--ember-soft); border: 1px solid var(--ember-border); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .intro-feature-icon::after { content: ''; width: 6px; height: 6px; background: var(--ember); border-radius: 50%; }
 
-  /* ============ Progress bar ============ */
-  .progress { width: 100%; height: 4px; background: var(--ember-dark); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
-  .progress-fill { height: 100%; background: var(--ember); transition: width 0.3s ease-out; width: 0%; }
-  .progress-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--sand); letter-spacing: 0.08em; margin-bottom: 24px; text-transform: uppercase; }
+  .progress-wrap { margin-bottom: 32px; }
+  .progress { width: 100%; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--ember); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 0%; }
+  .progress-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); letter-spacing: 0.08em; margin-top: 10px; text-transform: uppercase; }
 
-  /* ============ Question ============ */
-  .question { font-size: 26px; font-weight: 700; line-height: 1.3; margin: 0 0 12px; color: var(--linen); }
-  .helper { font-size: 14px; line-height: 1.6; color: var(--sand); margin-bottom: 28px; }
+  .question { font-size: 28px; font-weight: 600; line-height: 1.25; margin: 0 0 12px; color: var(--text-1); letter-spacing: -0.015em; }
+  .helper { font-size: 15px; line-height: 1.6; color: var(--text-2); margin-bottom: 32px; max-width: 540px; }
 
-  /* ============ Option buttons ============ */
-  .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+  .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 32px; }
   .option {
     width: 100%; text-align: left;
-    background: transparent;
-    border: 1px solid var(--ember-dark);
-    color: var(--linen);
-    padding: 14px 18px;
-    border-radius: var(--radius-btn);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    padding: 16px 20px;
+    border-radius: var(--r-btn);
     font-family: inherit; font-size: 15px; font-weight: 500;
     cursor: pointer; transition: all 0.15s ease;
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: center; gap: 14px;
+    line-height: 1.4;
   }
-  .option:hover { border-color: var(--ash); background: rgba(232,144,106,0.04); }
-  .option.selected { border-color: var(--ember); background: rgba(232,144,106,0.08); color: var(--linen); }
-  .option-emoji { font-size: 18px; flex-shrink: 0; }
+  .option:hover { border-color: var(--border-strong); background: var(--surface-2); }
+  .option.selected { border-color: var(--ember); background: var(--ember-soft); }
+  .option-emoji { font-size: 18px; flex-shrink: 0; opacity: 0.9; }
+  .option.selected .option-emoji { opacity: 1; }
 
-  /* ============ Text inputs ============ */
   .text-input, .text-area {
     width: 100%;
-    background: var(--void);
-    border: 1px solid var(--ember-dark);
-    color: var(--linen);
-    padding: 14px 16px;
-    border-radius: var(--radius-btn);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    padding: 16px 18px;
+    border-radius: var(--r-input);
     font-family: inherit; font-size: 15px;
-    transition: border-color 0.15s ease;
+    transition: border-color 0.15s, background 0.15s;
     margin-bottom: 16px;
+    line-height: 1.5;
   }
-  .text-input:focus, .text-area:focus { outline: none; border-color: var(--ember); }
-  .text-input::placeholder, .text-area::placeholder { color: var(--ash); }
-  .text-area { min-height: 100px; resize: vertical; font-family: inherit; line-height: 1.5; }
+  .text-input:focus, .text-area:focus { outline: none; border-color: var(--ember); background: var(--surface); }
+  .text-input::placeholder, .text-area::placeholder { color: var(--text-3); }
+  .text-area { min-height: 110px; resize: vertical; }
 
-  /* Custom-text reveal block */
-  .custom-text-wrap { margin-top: 4px; padding-left: 8px; border-left: 2px solid var(--ember-dark); margin-bottom: 16px; }
+  .custom-text-wrap { margin-top: -4px; padding-left: 12px; border-left: 2px solid var(--ember); margin-bottom: 24px; }
   .custom-text-wrap input { margin-bottom: 0; }
 
-  /* ============ Nav row (back/next) ============ */
   .nav-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
   .btn-primary {
-    background: var(--ember); color: var(--void);
+    background: var(--ember); color: var(--bg);
     border: none; padding: 14px 28px;
-    border-radius: var(--radius-btn); font-family: inherit;
-    font-size: 15px; font-weight: 700; cursor: pointer;
-    transition: background 0.15s ease;
-    letter-spacing: 0.01em;
+    border-radius: var(--r-btn); font-family: inherit;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s ease;
+    letter-spacing: -0.005em;
   }
-  .btn-primary:hover:not(:disabled) { background: var(--ember-hover); }
-  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-ghost { background: transparent; color: var(--sand); border: none; padding: 14px 16px; font-family: inherit; font-size: 14px; cursor: pointer; transition: color 0.15s ease; }
-  .btn-ghost:hover { color: var(--linen); }
+  .btn-primary:hover:not(:disabled) { background: var(--ember-hover); transform: translateY(-1px); }
+  .btn-primary:active:not(:disabled) { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-primary.full { width: 100%; padding: 16px 28px; font-size: 16px; }
+  .btn-ghost { background: transparent; color: var(--text-2); border: none; padding: 14px 14px; font-family: inherit; font-size: 14px; cursor: pointer; transition: color 0.15s ease; font-weight: 500; }
+  .btn-ghost:hover { color: var(--text-1); }
 
-  /* ============ Loading / generating screen ============ */
-  .loading { text-align: center; padding: 24px 0; }
-  .loading-h { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--ember); letter-spacing: 0.1em; margin-bottom: 24px; text-transform: uppercase; }
-  .loading-msg { font-size: 18px; color: var(--linen); margin-bottom: 8px; font-weight: 500; min-height: 28px; }
-  .loading-sub { font-size: 14px; color: var(--sand); margin-bottom: 32px; }
-  .spinner { width: 32px; height: 32px; border: 2px solid var(--ember-dark); border-top-color: var(--ember); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
+  .loading { text-align: center; padding: 48px 0; }
+  .loading-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ember); letter-spacing: 0.12em; margin-bottom: 32px; text-transform: uppercase; }
+  .loading-msg { font-size: 20px; color: var(--text-1); margin-bottom: 12px; font-weight: 500; min-height: 28px; letter-spacing: -0.01em; }
+  .loading-sub { font-size: 14px; color: var(--text-2); }
+  .spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--ember); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 32px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ============ Preview screen ============ */
-  .preview-tag { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--moss); letter-spacing: 0.1em; margin-bottom: 16px; text-transform: uppercase; }
-  .preview-niche { font-size: 28px; font-weight: 800; line-height: 1.2; color: var(--ember); margin: 0 0 16px; }
-  .verdict-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 20px; }
-  .verdict-green { background: rgba(76,175,80,0.12); color: var(--moss); border: 1px solid rgba(76,175,80,0.3); }
-  .verdict-yellow { background: rgba(232,144,106,0.12); color: var(--ember); border: 1px solid rgba(232,144,106,0.3); }
-  .verdict-red { background: rgba(232,85,85,0.12); color: var(--rose); border: 1px solid rgba(232,85,85,0.3); }
-  .preview-body { font-size: 15px; line-height: 1.7; color: var(--linen); margin-bottom: 20px; }
-  .preview-meta-row { display: flex; gap: 16px; flex-wrap: wrap; padding: 16px 0; border-top: 0.5px solid var(--ember-dark); border-bottom: 0.5px solid var(--ember-dark); margin-bottom: 24px; }
-  .preview-meta { font-size: 13px; }
-  .preview-meta-label { color: var(--sand); display: block; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
-  .preview-meta-val { color: var(--linen); font-weight: 600; }
-  .preview-teaser { font-size: 16px; line-height: 1.6; color: var(--linen); padding: 18px; background: var(--void); border-radius: var(--radius-btn); border-left: 3px solid var(--ember); margin-bottom: 32px; }
+  .preview-eyebrow { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--moss); letter-spacing: 0.12em; margin-bottom: 24px; text-transform: uppercase; padding: 6px 10px; background: rgba(93,186,98,0.10); border: 1px solid rgba(93,186,98,0.25); border-radius: 6px; }
+  .preview-niche { font-size: 32px; font-weight: 700; line-height: 1.2; color: var(--ember); margin: 0 0 20px; letter-spacing: -0.02em; }
+  .verdict-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 24px; }
+  .verdict-green { background: rgba(93,186,98,0.10); color: var(--moss); border: 1px solid rgba(93,186,98,0.25); }
+  .verdict-yellow { background: var(--ember-soft); color: var(--ember); border: 1px solid var(--ember-border); }
+  .verdict-red { background: rgba(232,85,85,0.10); color: var(--rose); border: 1px solid rgba(232,85,85,0.25); }
+  .preview-body { font-size: 16px; line-height: 1.7; color: var(--text-1); margin-bottom: 28px; }
+  .preview-meta-row { display: flex; gap: 24px; flex-wrap: wrap; padding: 20px 24px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-btn); margin-bottom: 28px; }
+  .preview-meta-label { color: var(--text-3); display: block; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+  .preview-meta-val { color: var(--text-1); font-weight: 600; font-size: 15px; }
+  .preview-teaser { font-size: 17px; line-height: 1.6; color: var(--text-1); padding: 24px; background: var(--ember-soft); border-radius: var(--r-btn); border: 1px solid var(--ember-border); margin-bottom: 36px; font-weight: 500; }
 
-  /* ============ Email capture ============ */
-  .email-h { font-size: 22px; font-weight: 700; line-height: 1.3; color: var(--linen); margin: 0 0 8px; }
-  .email-sub { font-size: 14px; line-height: 1.6; color: var(--sand); margin-bottom: 20px; }
+  .email-h { font-size: 26px; font-weight: 700; line-height: 1.25; color: var(--text-1); margin: 0 0 12px; letter-spacing: -0.015em; }
+  .email-sub { font-size: 15px; line-height: 1.65; color: var(--text-2); margin-bottom: 28px; max-width: 520px; }
   .email-form { display: flex; flex-direction: column; gap: 12px; }
-  .email-fine { font-size: 12px; color: var(--ash); line-height: 1.5; margin-top: 8px; }
+  .email-fine { font-size: 12px; color: var(--text-3); line-height: 1.5; margin-top: 12px; max-width: 520px; }
 
-  /* ============ Final / queued screens ============ */
-  .final-h { font-size: 28px; font-weight: 800; line-height: 1.2; color: var(--ember); margin: 0 0 12px; }
-  .final-sub { font-size: 16px; line-height: 1.6; color: var(--linen); margin-bottom: 24px; }
-  .final-roadmap { background: var(--void); border-radius: var(--radius-btn); padding: 24px; border: 1px solid var(--ember-dark); max-height: 480px; overflow-y: auto; font-size: 14px; line-height: 1.6; color: var(--linen); white-space: pre-wrap; word-wrap: break-word; font-family: 'JetBrains Mono', monospace; margin-bottom: 24px; }
-  .final-roadmap::-webkit-scrollbar { width: 8px; }
-  .final-roadmap::-webkit-scrollbar-track { background: var(--ember-dark); border-radius: 4px; }
-  .final-roadmap::-webkit-scrollbar-thumb { background: var(--ash); border-radius: 4px; }
-  .cta-row { display: flex; flex-direction: column; gap: 12px; }
-  .cta-link { display: block; padding: 16px 20px; background: var(--ember); color: var(--void); border-radius: var(--radius-btn); text-decoration: none; font-weight: 700; text-align: center; font-size: 15px; transition: background 0.15s ease; }
-  .cta-link:hover { background: var(--ember-hover); }
-  .cta-link-ghost { display: block; padding: 14px 20px; background: transparent; color: var(--sand); border: 1px solid var(--ember-dark); border-radius: var(--radius-btn); text-decoration: none; text-align: center; font-size: 14px; transition: all 0.15s ease; }
-  .cta-link-ghost:hover { color: var(--linen); border-color: var(--ash); }
+  .final-wrap { text-align: center; padding: 8px 0 0; }
+  .final-eyebrow { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--moss); letter-spacing: 0.12em; margin-bottom: 28px; text-transform: uppercase; padding: 6px 12px; background: rgba(93,186,98,0.10); border: 1px solid rgba(93,186,98,0.25); border-radius: 6px; }
+  .final-h { font-size: 36px; font-weight: 700; line-height: 1.15; color: var(--text-1); margin: 0 0 16px; letter-spacing: -0.02em; }
+  .final-h .accent { color: var(--ember); }
+  .final-sub { font-size: 17px; line-height: 1.6; color: var(--text-2); margin: 0 auto 40px; max-width: 480px; }
+  .final-email-card { display: inline-flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-btn); margin-bottom: 48px; font-size: 14px; color: var(--text-1); }
+  .final-email-card-icon { width: 10px; height: 10px; background: var(--moss); border-radius: 50%; animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .final-divider { height: 1px; background: var(--border); margin: 8px 0 48px; }
 
-  /* ============ Footer ============ */
-  .footer { width: 100%; max-width: 720px; text-align: center; margin-top: 32px; font-size: 12px; color: var(--ash); }
-  .footer a { color: var(--sand); text-decoration: none; }
-  .footer a:hover { color: var(--linen); }
+  .pitch-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ember); letter-spacing: 0.12em; margin-bottom: 16px; text-transform: uppercase; }
+  .pitch-h { font-size: 28px; font-weight: 700; line-height: 1.2; color: var(--text-1); margin: 0 0 16px; letter-spacing: -0.015em; }
+  .pitch-h .accent { color: var(--ember); }
+  .pitch-sub { font-size: 16px; line-height: 1.65; color: var(--text-2); margin: 0 0 32px; }
+  .pitch-features { display: flex; flex-direction: column; gap: 14px; margin: 0 0 36px; text-align: left; }
+  .pitch-feature { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-btn); transition: border-color 0.15s; }
+  .pitch-feature:hover { border-color: var(--border-strong); }
+  .pitch-feature-num { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--ember); flex-shrink: 0; padding-top: 2px; }
+  .pitch-feature-title { font-size: 15px; font-weight: 600; color: var(--text-1); margin: 0 0 4px; }
+  .pitch-feature-desc { font-size: 14px; color: var(--text-2); line-height: 1.55; }
+  .pitch-price-row { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-bottom: 24px; }
+  .pitch-price { font-size: 40px; font-weight: 700; color: var(--text-1); letter-spacing: -0.02em; }
+  .pitch-price-sub { font-size: 14px; color: var(--text-2); }
 
-  /* ============ Responsive ============ */
-  @media (max-width: 600px) {
-    body { padding: 16px 12px 32px; }
-    .card { padding: 28px 20px; border-radius: 8px; }
-    .intro-h1 { font-size: 28px; }
+  .cta-stack { display: flex; flex-direction: column; gap: 12px; max-width: 420px; margin: 0 auto; }
+  .cta-link { display: block; padding: 18px 24px; background: var(--ember); color: var(--bg); border-radius: var(--r-btn); text-decoration: none; font-weight: 600; text-align: center; font-size: 16px; transition: all 0.15s ease; letter-spacing: -0.005em; }
+  .cta-link:hover { background: var(--ember-hover); transform: translateY(-1px); }
+  .cta-link-ghost { display: block; padding: 14px 24px; background: transparent; color: var(--text-2); border: 1px solid var(--border); border-radius: var(--r-btn); text-decoration: none; text-align: center; font-size: 14px; transition: all 0.15s ease; font-weight: 500; }
+  .cta-link-ghost:hover { color: var(--text-1); border-color: var(--border-strong); }
+
+  .footer { width: 100%; max-width: 680px; text-align: center; margin-top: 40px; font-size: 12px; color: var(--text-3); }
+  .footer a { color: var(--text-2); text-decoration: none; transition: color 0.15s; }
+  .footer a:hover { color: var(--text-1); }
+
+  @media (max-width: 640px) {
+    body { padding: 20px 16px 40px; }
+    .header { margin-bottom: 32px; }
+    .card { padding: 36px 24px; border-radius: 12px; }
+    h1 { font-size: 32px; }
     .question { font-size: 22px; }
-    .preview-niche { font-size: 24px; }
-    .final-h { font-size: 24px; }
+    .preview-niche { font-size: 26px; }
+    .final-h { font-size: 28px; }
+    .pitch-h { font-size: 24px; }
+    .pitch-price { font-size: 36px; }
   }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="logo">CAYDE<span>OS</span> ▸ FREE TOOL</div>
+  <div class="logo"><span class="accent">CAYDE</span>OS <span class="sep">/</span> FREE TOOL</div>
   <a href="https://caydeai.carrd.co" class="header-link">caydeai ↗</a>
 </div>
 
-<div class="card" id="app">
-  <!-- Screens render here via JS -->
-</div>
+<div class="card" id="app"></div>
 
 <div class="footer">
   Built by Cayde · <a href="https://caydeai.carrd.co">caydeai.carrd.co</a> · 90 day public build
 </div>
 
 <script>
-// ============ Config ============
 const WORKER_URL = 'https://freetool.caydenfrankai.workers.dev';
 
-// ============ Question Spec (LOCKED — see decision_log.md / chat history Day 11) ============
 const QUESTIONS = [
-  // Q1 — Path branch (drives Q2 phrasing). Locked: "Kind of" merged into "No or kind of".
-  {
-    id: 'Q1', type: 'choice',
-    question: 'Do you already know what business or niche you want to build?',
-    helper: 'No wrong answer — this just determines where we start. Both paths give you the same quality output.',
-    options: [
-      { value: 'yes', label: 'Yes — I have a niche in mind', emoji: '✅' },
-      { value: 'no_or_kind_of', label: 'No or kind of — help me figure it out', emoji: '🤔' }
-    ]
-  },
-  // Q2 — Niche or interests (text, phrasing changes based on Q1)
-  {
-    id: 'Q2', type: 'text',
-    questionFn: (answers) => answers.Q1 === 'yes'
-      ? "What's your niche? Be as specific as you can."
-      : "What are you actually interested in or good at?",
-    helperFn: (answers) => answers.Q1 === 'yes'
-      ? "Specific beats broad. \"Vintage dog mom apparel for goldendoodle owners\" beats \"pet stuff.\" If you have a target customer in mind, name them too."
-      : "Don't worry about it being \"profitable\" — just real interests, skills, or experiences. We'll find the angle. Specific beats broad.",
-    placeholderFn: (answers) => answers.Q1 === 'yes'
-      ? "e.g. Notion templates for ADHD founders, freelance pixel art commissions on Fiverr, minimalist desk plants for renters..."
-      : "e.g. I'm a teacher who's into productivity systems, I make pixel art as a hobby, I rescue dogs and know the community well..."
-  },
-  // Q3 — Time per week
-  {
-    id: 'Q3', type: 'choice',
-    question: 'How many hours per week can you realistically commit?',
-    helper: "Be honest. This drives feasibility — a software build at 5 hrs/week doesn't work; a POD shop at 5 hrs/week does.",
+  { id: 'Q3', type: 'choice', question: 'How many hours per week can you realistically commit?', helper: "Be honest. This drives feasibility — a software build at 5 hrs/week doesn't work; a POD shop at 5 hrs/week does.",
     options: [
       { value: '5-10', label: '5–10 hours (part-time, evenings/weekends)', emoji: '⏰' },
       { value: '10-20', label: '10–20 hours (serious side project)', emoji: '🕐' },
@@ -230,11 +221,7 @@ const QUESTIONS = [
       { value: '40+', label: '40+ hours (full-time focus)', emoji: '🚀' }
     ]
   },
-  // Q4 — Starting capital
-  {
-    id: 'Q4', type: 'choice',
-    question: "What's your budget for getting this off the ground?",
-    helper: "Includes tools, platform fees, design assets, initial inventory if any. Doesn't need to be your total savings — just what you're willing to invest.",
+  { id: 'Q4', type: 'choice', question: "What's your budget for getting this off the ground?", helper: "Includes tools, platform fees, design assets, initial inventory if any. Just what you're willing to invest.",
     options: [
       { value: '$0-100', label: '$0–100 (scrappy mode)', emoji: '💸' },
       { value: '$100-500', label: '$100–500 (lean budget)', emoji: '💵' },
@@ -242,11 +229,7 @@ const QUESTIONS = [
       { value: '$2000+', label: '$2000+ (well-resourced)', emoji: '🏦' }
     ]
   },
-  // Q5 — Technical comfort (with custom)
-  {
-    id: 'Q5', type: 'choice-or-custom',
-    question: 'How would you describe your technical comfort?',
-    helper: 'No judgment here — there are great businesses to build at every level. Be honest so I can recommend what fits.',
+  { id: 'Q5', type: 'choice-or-custom', question: 'How would you describe your technical comfort?', helper: 'No judgment here — there are great businesses to build at every level.',
     options: [
       { value: 'no-skills', label: 'Just starting — no design or code background', emoji: '🌱' },
       { value: 'no-code tools', label: 'Comfortable with no-code tools (Canva, Notion, Make.com)', emoji: '🛠️' },
@@ -256,11 +239,18 @@ const QUESTIONS = [
     ],
     customPlaceholder: 'Describe your skills in your own words...'
   },
-  // Q6 — Product type (with custom)
-  {
-    id: 'Q6', type: 'choice-or-custom',
-    question: 'What sounds most like the business you want to run?',
-    helper: "Not sure? That's fine — pick \"honestly not sure\" and I'll recommend what fits your other answers.",
+  { id: 'Q1', type: 'choice', question: 'Do you already know what business or niche you want to build?', helper: 'No wrong answer — this just determines how we phrase the next question.',
+    options: [
+      { value: 'yes', label: 'Yes — I have a niche in mind', emoji: '✅' },
+      { value: 'no_or_kind_of', label: 'No or kind of — help me figure it out', emoji: '🤔' }
+    ]
+  },
+  { id: 'Q2', type: 'text',
+    questionFn: (answers) => answers.Q1 === 'yes' ? "What's your niche? Be as specific as you can." : "What are you actually interested in or good at?",
+    helperFn: (answers) => answers.Q1 === 'yes' ? "Specific beats broad. \"Vintage dog mom apparel for goldendoodle owners\" beats \"pet stuff.\" Target customer too if you have one." : "Don't worry about \"profitable\" — just real interests, skills, or experiences. We'll find the angle.",
+    placeholderFn: (answers) => answers.Q1 === 'yes' ? "e.g. Notion templates for ADHD founders, freelance pixel art commissions on Fiverr, minimalist desk plants for renters..." : "e.g. I'm a teacher who's into productivity systems, I make pixel art as a hobby, I rescue dogs and know the community well..."
+  },
+  { id: 'Q6', type: 'choice-or-custom', question: 'What sounds most like the business you want to run?', helper: "Not sure? Pick \"honestly not sure\" and I'll recommend what fits.",
     options: [
       { value: 'POD', label: 'Physical products (apparel, prints, mugs — fulfilled by someone else)', emoji: '👕' },
       { value: 'Service', label: 'Services (your time/skill, delivered to clients)', emoji: '🤝' },
@@ -271,11 +261,7 @@ const QUESTIONS = [
     ],
     customPlaceholder: 'Describe what you have in mind...'
   },
-  // Q7 — Existing audience
-  {
-    id: 'Q7', type: 'choice',
-    question: 'Do you have any existing audience or distribution?',
-    helper: 'Even small audiences change the recommendation a lot. Newsletter, Discord, Twitter, YouTube — all count.',
+  { id: 'Q7', type: 'choice', question: 'Do you have any existing audience or distribution?', helper: 'Even small audiences change the recommendation. Newsletter, Discord, Twitter, YouTube — all count.',
     options: [
       { value: 'none', label: 'None — starting from zero', emoji: '🌑' },
       { value: 'small', label: 'Small (under 1K followers or 500 subscribers)', emoji: '🌒' },
@@ -283,11 +269,7 @@ const QUESTIONS = [
       { value: 'large', label: 'Large (10K+ followers or 3K+ subscribers)', emoji: '🌕' }
     ]
   },
-  // Q8 — Launch speed
-  {
-    id: 'Q8', type: 'choice',
-    question: 'How fast do you want to launch?',
-    helper: "\"Done is better than perfect\" applies, but there's no wrong answer. Honest pace beats overcommitting.",
+  { id: 'Q8', type: 'choice', question: 'How fast do you want to launch?', helper: "There's no wrong answer. Honest pace beats overcommitting.",
     options: [
       { value: 'this_week', label: 'This week if possible (move fast)', emoji: '⚡' },
       { value: 'this_month', label: 'This month (steady pace)', emoji: '📅' },
@@ -295,11 +277,7 @@ const QUESTIONS = [
       { value: 'no_rush', label: "No rush (when it's ready)", emoji: '🐢' }
     ]
   },
-  // Q9 — Brand voice (with custom)
-  {
-    id: 'Q9', type: 'choice-or-custom',
-    question: 'Pick a brand voice that feels closest to you.',
-    helper: 'This shapes the personality of everything you create — listings, gigs, copy. Pick what feels natural; you can refine later.',
+  { id: 'Q9', type: 'choice-or-custom', question: 'Pick a brand voice that feels closest to you.', helper: 'This shapes everything you create — listings, gigs, copy. Pick what feels natural.',
     options: [
       { value: 'casual', label: 'Casual / conversational', emoji: '💬' },
       { value: 'witty/dry', label: 'Witty / dry', emoji: '😏' },
@@ -311,28 +289,10 @@ const QUESTIONS = [
     ],
     customPlaceholder: 'Describe your voice in your own words...'
   },
-  // Q10 — Anything else (universal text, optional)
-  {
-    id: 'Q10', type: 'text-optional',
-    question: 'Anything else I should know?',
-    helper: 'Optional. Constraints, weird situations, platforms you want to avoid, specific goals — anything that would help me give you better recommendations. Skip if you\'re good.',
-    placeholder: 'Optional — anything important I should factor in...'
-  }
+  { id: 'Q10', type: 'text-optional', question: 'Anything else I should know?', helper: 'Optional. Constraints, weird situations, platforms you want to avoid, specific goals. Skip if you\'re good.', placeholder: 'Optional — anything important I should factor in...' }
 ];
 
-// ============ State ============
-const state = {
-  screen: 'intro', // intro | quiz | generating | preview | email | sending | final | queued
-  step: 0,
-  answers: {},
-  customs: {}, // for choice-or-custom and merging Q1 yes/no path
-  stage1: null,
-  stage2: null,
-  email: '',
-  fallback: null
-};
-
-// ============ Render ============
+const state = { screen: 'intro', step: 0, answers: {}, customs: {}, stage1: null, stage2: null, email: '', fallback: null };
 const app = document.getElementById('app');
 
 function render() {
@@ -342,19 +302,19 @@ function render() {
   if (state.screen === 'preview') return renderPreview();
   if (state.screen === 'email') return renderEmail();
   if (state.screen === 'sending') return renderGenerating('Researching real market data...');
-  if (state.screen === 'final') return renderFinal();
-  if (state.screen === 'queued') return renderQueued();
+  if (state.screen === 'final') return renderFinal(false);
+  if (state.screen === 'queued') return renderFinal(true);
 }
 
 function renderIntro() {
   app.innerHTML = `
-    <div class="intro-tag">Free · No signup to start · 5 minutes</div>
+    <div class="eyebrow">Free · No signup to start · 5 minutes</div>
     <h1 class="intro-h1">Your personalized <span class="accent">AI business roadmap</span>, generated in 5 minutes.</h1>
     <p class="intro-sub">10 questions. Real research. A specific niche + product + first action — not generic "consider X" advice. Built by Cayde, solo founder building CaydeOS in public.</p>
-    <div class="intro-meta">
-      <div class="intro-meta-item"><span class="intro-meta-dot"></span>Specific niche recommendation</div>
-      <div class="intro-meta-item"><span class="intro-meta-dot"></span>Real market data (live web search)</div>
-      <div class="intro-meta-item"><span class="intro-meta-dot"></span>First 30-day scenario</div>
+    <div class="intro-features">
+      <div class="intro-feature"><div class="intro-feature-icon"></div><div>A specific niche recommendation matched to your actual constraints</div></div>
+      <div class="intro-feature"><div class="intro-feature-icon"></div><div>Real market data — live pricing, competitors, and gaps via web search</div></div>
+      <div class="intro-feature"><div class="intro-feature-icon"></div><div>A realistic first 30 days scenario based on your time and budget</div></div>
     </div>
     <button class="btn-primary" onclick="startQuiz()">Start the quiz →</button>
   `;
@@ -364,29 +324,17 @@ function renderQuestion() {
   const q = QUESTIONS[state.step];
   const progress = ((state.step + 1) / QUESTIONS.length) * 100;
   const isLast = state.step === QUESTIONS.length - 1;
-
   const questionText = q.questionFn ? q.questionFn(state.answers) : q.question;
   const helperText = q.helperFn ? q.helperFn(state.answers) : q.helper;
   const placeholder = q.placeholderFn ? q.placeholderFn(state.answers) : q.placeholder;
 
   let body = '';
   if (q.type === 'choice') {
-    body = `<div class="options">` + q.options.map(opt => `
-      <button class="option ${state.answers[q.id] === opt.value ? 'selected' : ''}" onclick="selectChoice('${q.id}','${opt.value}')">
-        <span class="option-emoji">${opt.emoji}</span><span>${opt.label}</span>
-      </button>
-    `).join('') + `</div>`;
+    body = `<div class="options">` + q.options.map(opt => `<button class="option ${state.answers[q.id] === opt.value ? 'selected' : ''}" onclick="selectChoice('${q.id}','${opt.value}')"><span class="option-emoji">${opt.emoji}</span><span>${opt.label}</span></button>`).join('') + `</div>`;
   } else if (q.type === 'choice-or-custom') {
-    body = `<div class="options">` + q.options.map(opt => `
-      <button class="option ${state.answers[q.id] === opt.value ? 'selected' : ''}" onclick="selectChoice('${q.id}','${opt.value}')">
-        <span class="option-emoji">${opt.emoji}</span><span>${opt.label}</span>
-      </button>
-    `).join('') + `</div>`;
+    body = `<div class="options">` + q.options.map(opt => `<button class="option ${state.answers[q.id] === opt.value ? 'selected' : ''}" onclick="selectChoice('${q.id}','${opt.value}')"><span class="option-emoji">${opt.emoji}</span><span>${opt.label}</span></button>`).join('') + `</div>`;
     if (state.answers[q.id] === 'other') {
-      body += `
-        <div class="custom-text-wrap">
-          <input type="text" class="text-input" placeholder="${q.customPlaceholder || ''}" value="${state.customs[q.id] || ''}" oninput="setCustom('${q.id}', this.value)" />
-        </div>`;
+      body += `<div class="custom-text-wrap"><input type="text" class="text-input" placeholder="${q.customPlaceholder || ''}" value="${state.customs[q.id] || ''}" oninput="setCustom('${q.id}', this.value)" /></div>`;
     }
   } else if (q.type === 'text') {
     body = `<textarea class="text-area" placeholder="${placeholder || ''}" oninput="setText('${q.id}', this.value)">${state.answers[q.id] || ''}</textarea>`;
@@ -398,8 +346,10 @@ function renderQuestion() {
   const advanceLabel = isLast ? 'Generate my roadmap →' : 'Next →';
 
   app.innerHTML = `
-    <div class="progress"><div class="progress-fill" style="width: ${progress}%"></div></div>
-    <div class="progress-label">Question ${state.step + 1} of ${QUESTIONS.length}</div>
+    <div class="progress-wrap">
+      <div class="progress"><div class="progress-fill" style="width: ${progress}%"></div></div>
+      <div class="progress-label">Question ${state.step + 1} of ${QUESTIONS.length}</div>
+    </div>
     <h2 class="question">${questionText}</h2>
     <p class="helper">${helperText || ''}</p>
     ${body}
@@ -412,7 +362,7 @@ function renderQuestion() {
 
 function canAdvanceFrom(q) {
   const a = state.answers[q.id];
-  if (q.type === 'text-optional') return true; // Q10 always advances
+  if (q.type === 'text-optional') return true;
   if (q.type === 'text') return a && a.trim().length > 0;
   if (q.type === 'choice') return !!a;
   if (q.type === 'choice-or-custom') {
@@ -424,43 +374,33 @@ function canAdvanceFrom(q) {
 }
 
 function renderGenerating(msg) {
-  app.innerHTML = `
-    <div class="loading">
-      <div class="loading-h">▸ Working</div>
-      <div class="spinner"></div>
-      <div class="loading-msg" id="loadingMsg">${msg}</div>
-      <div class="loading-sub">This takes ~10–30 seconds.</div>
-    </div>
-  `;
+  app.innerHTML = `<div class="loading"><div class="loading-eyebrow">▸ Working</div><div class="spinner"></div><div class="loading-msg" id="loadingMsg">${msg}</div><div class="loading-sub">This takes ~10–30 seconds.</div></div>`;
 }
 
 function renderPreview() {
   const s1 = parseStage1(state.stage1);
   const verdictClass = s1.verdict.includes('GREEN') ? 'verdict-green' : s1.verdict.includes('YELLOW') ? 'verdict-yellow' : 'verdict-red';
   app.innerHTML = `
-    <div class="preview-tag">✓ Preview ready</div>
+    <div class="preview-eyebrow">✓ Preview ready</div>
     <h2 class="preview-niche">${escapeHtml(s1.niche)}</h2>
     <div class="verdict-pill ${verdictClass}">${escapeHtml(s1.verdict)}</div>
     <p class="preview-body">${escapeHtml(s1.why)}</p>
     <div class="preview-meta-row">
-      <div class="preview-meta">
-        <span class="preview-meta-label">Recommended type</span>
-        <span class="preview-meta-val">${escapeHtml(s1.productType)}</span>
-      </div>
+      <div><span class="preview-meta-label">Recommended type</span><span class="preview-meta-val">${escapeHtml(s1.productType)}</span></div>
     </div>
     <div class="preview-teaser">${escapeHtml(s1.teaser)}</div>
-    <button class="btn-primary" style="width:100%" onclick="goToEmail()">Get my full roadmap →</button>
+    <button class="btn-primary full" onclick="goToEmail()">Get my full roadmap →</button>
   `;
 }
 
 function renderEmail() {
   app.innerHTML = `
-    <div class="preview-tag">▸ Last step</div>
+    <div class="eyebrow">▸ Last step</div>
     <h2 class="email-h">Where should I send your full personalized roadmap?</h2>
-    <p class="email-sub">Includes the complete niche analysis with real market data, recommended product spec, first 30 days scenario, and a handoff block for the Workshop. 100% free.</p>
+    <p class="email-sub">Includes the complete niche analysis with real market data, recommended product spec, first 30 days scenario, and your handoff block. 100% free.</p>
     <div class="email-form">
       <input type="email" class="text-input" placeholder="you@example.com" id="emailInput" oninput="state.email = this.value" onkeydown="if(event.key==='Enter') submitEmail()" />
-      <button class="btn-primary" onclick="submitEmail()" id="emailSubmitBtn">Send me my roadmap →</button>
+      <button class="btn-primary full" onclick="submitEmail()" id="emailSubmitBtn">Send me my roadmap →</button>
       <p class="email-fine">You'll also get the Building CaydeAI newsletter — solo founder build updates every Friday. Unsubscribe anytime. I read every reply.</p>
     </div>
     <div class="nav-row" style="margin-top:24px">
@@ -470,46 +410,71 @@ function renderEmail() {
   setTimeout(() => document.getElementById('emailInput')?.focus(), 100);
 }
 
-function renderFinal() {
+function renderFinal(isQueued) {
+  const s1 = parseStage1(state.stage1);
+  const niche = s1.niche || 'roadmap';
+  const headlineCopy = isQueued
+    ? `Your <span class="accent">${escapeHtml(niche)}</span> is on the way.`
+    : `Your <span class="accent">${escapeHtml(niche)}</span> is in your inbox.`;
+  const subCopy = isQueued
+    ? `Traffic is heavy right now — your full personalized roadmap is being generated and will arrive at <strong style="color:var(--text-1)">${escapeHtml(state.email)}</strong> within ~10 minutes.`
+    : `The full personalized roadmap — niche profile, recommended path, first 30 days, and your handoff block — is being sent to your inbox now.`;
+
   app.innerHTML = `
-    <div class="preview-tag" style="color: var(--moss)">✓ Your roadmap is ready</div>
-    <h2 class="final-h">Here's your full roadmap.</h2>
-    <p class="final-sub">A copy is also being sent to <strong style="color:var(--linen)">${escapeHtml(state.email)}</strong> so you can read it anytime.</p>
-    <div class="final-roadmap">${escapeHtml(state.stage2)}</div>
-    <div class="cta-row">
-      <a class="cta-link" href="https://caydenfrank.gumroad.com/l/the-workshop" target="_blank">Build this with The Workshop — $47 →</a>
+    <div class="final-wrap">
+      <div class="final-eyebrow">${isQueued ? '▸ Generating' : '✓ Sent'}</div>
+      <h1 class="final-h">${headlineCopy}</h1>
+      <p class="final-sub">${subCopy}</p>
+      <div class="final-email-card"><div class="final-email-card-icon"></div><span>${escapeHtml(state.email)}</span></div>
+    </div>
+
+    <div class="final-divider"></div>
+
+    <div class="pitch-eyebrow">▸ Now actually build it</div>
+    <h2 class="pitch-h">Your roadmap tells you <span class="accent">what</span> to build.<br/>The Workshop walks you through <span class="accent">how</span>.</h2>
+    <p class="pitch-sub">Your roadmap ends with a handoff block — paste it into The Workshop's product-shaper skill and skip straight to building. No re-explaining your niche, no starting from scratch.</p>
+
+    <div class="pitch-features">
+      <div class="pitch-feature">
+        <div class="pitch-feature-num">01</div>
+        <div>
+          <div class="pitch-feature-title">product-shaper</div>
+          <div class="pitch-feature-desc">Takes your roadmap and refines it into a real product spec with SKU lineup, price tier, and platform fit.</div>
+        </div>
+      </div>
+      <div class="pitch-feature">
+        <div class="pitch-feature-num">02</div>
+        <div>
+          <div class="pitch-feature-title">product-drafter</div>
+          <div class="pitch-feature-desc">Generates your first listings, gigs, or products in your brand voice — paste-ready for Etsy, Fiverr, Gumroad.</div>
+        </div>
+      </div>
+      <div class="pitch-feature">
+        <div class="pitch-feature-num">03</div>
+        <div>
+          <div class="pitch-feature-title">launch-stack</div>
+          <div class="pitch-feature-desc">Walks you through storefront setup, automation, and launch day — for your specific product type.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pitch-price-row">
+      <div class="pitch-price">$47</div>
+      <div class="pitch-price-sub">one-time, lifetime updates</div>
+    </div>
+
+    <div class="cta-stack">
+      <a class="cta-link" href="https://caydenfrank.gumroad.com/l/the-workshop" target="_blank">Get The Workshop →</a>
       <a class="cta-link-ghost" href="https://caydeai.carrd.co" target="_blank">Follow the 90-day build at caydeai</a>
     </div>
   `;
 }
 
-function renderQueued() {
-  const s1 = parseStage1(state.fallback || state.stage1);
-  app.innerHTML = `
-    <div class="preview-tag" style="color: var(--ember)">▸ Generating your full version</div>
-    <h2 class="final-h">Your roadmap is on the way.</h2>
-    <p class="final-sub">Traffic is heavy right now, so your full personalized version is being generated and will arrive in your inbox at <strong style="color:var(--linen)">${escapeHtml(state.email)}</strong> within ~10 minutes. Here's your preview again in the meantime:</p>
-    <h3 style="font-size:22px;font-weight:700;color:var(--ember);margin:24px 0 12px">${escapeHtml(s1.niche)}</h3>
-    <p class="preview-body">${escapeHtml(s1.why)}</p>
-    <div class="preview-teaser">${escapeHtml(s1.teaser)}</div>
-    <div class="cta-row">
-      <a class="cta-link" href="https://caydenfrank.gumroad.com/l/the-workshop" target="_blank">Don't wait — build this with The Workshop ($47) →</a>
-      <a class="cta-link-ghost" href="https://caydeai.carrd.co" target="_blank">Follow the 90-day build at caydeai</a>
-    </div>
-  `;
-}
-
-// ============ Handlers ============
 function startQuiz() { state.screen = 'quiz'; state.step = 0; render(); }
 
-function selectChoice(qid, val) {
-  state.answers[qid] = val;
-  render();
-}
+function selectChoice(qid, val) { state.answers[qid] = val; render(); }
 function setCustom(qid, val) {
   state.customs[qid] = val;
-  // Don't re-render on every keystroke (would lose focus). Just update state.
-  // But we need to enable the Next button — toggle disabled state directly.
   const q = QUESTIONS.find(x => x.id === qid);
   const canAdv = canAdvanceFrom(q);
   const nextBtn = document.querySelector('.btn-primary');
@@ -523,18 +488,11 @@ function setText(qid, val) {
   if (nextBtn) nextBtn.disabled = !canAdv;
 }
 
-function goBack() {
-  if (state.step > 0) { state.step--; render(); }
-}
+function goBack() { if (state.step > 0) { state.step--; render(); } }
 
 async function goNext() {
-  if (state.step < QUESTIONS.length - 1) {
-    state.step++;
-    render();
-  } else {
-    // Last question — submit to Stage 1
-    await submitStage1();
-  }
+  if (state.step < QUESTIONS.length - 1) { state.step++; render(); }
+  else { await submitStage1(); }
 }
 
 function goToEmail() { state.screen = 'email'; render(); }
@@ -544,18 +502,14 @@ async function submitStage1() {
   render();
   rotateLoadingMessages(['Reading your answers...', 'Matching to constraints...', 'Picking your niche...']);
 
-  // Merge customs into answers for fields that have them
   const payload = { ...state.answers };
   ['Q5', 'Q6', 'Q9'].forEach(qid => {
-    if (payload[qid] === 'other' && state.customs[qid]) {
-      payload[qid] = state.customs[qid];
-    }
+    if (payload[qid] === 'other' && state.customs[qid]) payload[qid] = state.customs[qid];
   });
 
   try {
     const res = await fetch(`${WORKER_URL}/stage1`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answers: payload })
     });
     if (!res.ok) throw new Error(`Stage 1 failed: ${res.status}`);
@@ -573,45 +527,25 @@ async function submitStage1() {
 
 async function submitEmail() {
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email || '');
-  if (!emailValid) {
-    alert('Please enter a valid email address.');
-    return;
-  }
+  if (!emailValid) { alert('Please enter a valid email address.'); return; }
   const btn = document.getElementById('emailSubmitBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
 
   state.screen = 'sending';
   render();
-  rotateLoadingMessages([
-    'Researching real market data...',
-    'Pulling competitor pricing...',
-    'Building your 30-day plan...',
-    'Writing your handoff block...'
-  ]);
+  rotateLoadingMessages(['Researching real market data...', 'Pulling competitor pricing...', 'Building your 30-day plan...', 'Writing your handoff block...']);
 
-  // Merge customs again for the Stage 2 payload
   const payload = { ...state.answers };
   ['Q5', 'Q6', 'Q9'].forEach(qid => {
-    if (payload[qid] === 'other' && state.customs[qid]) {
-      payload[qid] = state.customs[qid];
-    }
+    if (payload[qid] === 'other' && state.customs[qid]) payload[qid] = state.customs[qid];
   });
 
   try {
     const res = await fetch(`${WORKER_URL}/stage2`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        answers: payload,
-        stage1: state.stage1,
-        email: state.email
-      })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers: payload, stage1: state.stage1, email: state.email })
     });
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error('Stage 2 HTTP error:', res.status, errBody);
-      throw new Error('Stage 2 request failed');
-    }
+    if (!res.ok) throw new Error('Stage 2 request failed');
     const data = await res.json();
 
     if (data.status === 'success' && data.stage2) {
@@ -623,21 +557,18 @@ async function submitEmail() {
       state.screen = 'queued';
       render();
     } else {
-      // Unexpected shape — fall back to queued message
       state.fallback = state.stage1;
       state.screen = 'queued';
       render();
     }
   } catch (err) {
     console.error(err);
-    // Network/other error — degrade gracefully to queued (email already submitted to Beehiiv on server side)
     state.fallback = state.stage1;
     state.screen = 'queued';
     render();
   }
 }
 
-// ============ Helpers ============
 function parseStage1(raw) {
   if (!raw) return { niche: '', verdict: '', why: '', productType: '', teaser: '' };
   const get = (label) => {
@@ -645,23 +576,12 @@ function parseStage1(raw) {
     const m = raw.match(re);
     return m ? m[1].trim() : '';
   };
-  return {
-    niche: get('NICHE_NAME'),
-    verdict: get('VERDICT'),
-    why: get('WHY_IT_FITS_YOU'),
-    productType: get('PRODUCT_TYPE'),
-    teaser: get('ONE_LINE_TEASER')
-  };
+  return { niche: get('NICHE_NAME'), verdict: get('VERDICT'), why: get('WHY_IT_FITS_YOU'), productType: get('PRODUCT_TYPE'), teaser: get('ONE_LINE_TEASER') };
 }
 
 function escapeHtml(s) {
   if (!s) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
 function rotateLoadingMessages(messages) {
@@ -674,7 +594,6 @@ function rotateLoadingMessages(messages) {
   }, 3500);
 }
 
-// ============ Boot ============
 render();
 </script>
 
